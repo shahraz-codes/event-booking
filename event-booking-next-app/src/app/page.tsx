@@ -2,23 +2,23 @@ import Link from "next/link";
 
 const GALLERY_IMAGES = [
   {
-    title: "Grand Ballroom",
-    desc: "Seats up to 500 guests",
+    title: "Banquet Hall",
+    desc: "Accommodates up to 600 guests",
     gradient: "from-amber-600 to-amber-800",
   },
   {
-    title: "Elegant Décor",
-    desc: "Customizable themes",
-    gradient: "from-rose-600 to-rose-800",
-  },
-  {
-    title: "Fine Dining",
-    desc: "World-class catering",
+    title: "Terrace Lawn",
+    desc: "Open-air space for intimate gatherings",
     gradient: "from-emerald-600 to-emerald-800",
   },
   {
-    title: "Stage & Lighting",
-    desc: "Professional AV setup",
+    title: "Elegant Interiors",
+    desc: "Pillar-light design & modern false ceiling",
+    gradient: "from-rose-600 to-rose-800",
+  },
+  {
+    title: "Flexible Stage",
+    desc: "Customizable layouts with professional AV",
     gradient: "from-violet-600 to-violet-800",
   },
 ];
@@ -30,8 +30,8 @@ const SERVICES = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
       </svg>
     ),
-    title: "Event Planning",
-    desc: "Full-service event coordination from concept to execution.",
+    title: "Event Planning & Décor",
+    desc: "End-to-end event coordination with on-site decorators for custom themes.",
   },
   {
     icon: (
@@ -39,8 +39,8 @@ const SERVICES = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
       </svg>
     ),
-    title: "Premium Venue",
-    desc: "Climate-controlled halls with elegant interiors and modern amenities.",
+    title: "Premium AC Venue",
+    desc: "Centrally air-conditioned halls across two floors with lifts and parking.",
   },
   {
     icon: (
@@ -48,8 +48,8 @@ const SERVICES = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
       </svg>
     ),
-    title: "Entertainment",
-    desc: "Professional sound, lighting, and stage arrangements.",
+    title: "In-house DJ & Entertainment",
+    desc: "Professional sound, lighting, and stage arrangements with DJ services.",
   },
   {
     icon: (
@@ -57,8 +57,8 @@ const SERVICES = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
       </svg>
     ),
-    title: "Catering",
-    desc: "Multi-cuisine menu options with custom dietary accommodations.",
+    title: "Multi-cuisine Catering",
+    desc: "In-house Hyderabadi, North Indian, and multicuisine menus — veg & non-veg.",
   },
 ];
 
@@ -70,17 +70,18 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNCI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
         <div className="relative mx-auto max-w-4xl">
           <p className="mb-4 text-sm font-medium uppercase tracking-widest text-amber-300">
-            Premium Event Venue
+            Premium Event Venue &bull; Tolichowki, Hyderabad
           </p>
           <h1 className="mb-6 text-5xl font-bold leading-tight tracking-tight md:text-6xl">
-            Create Unforgettable
+            Welcome to
             <br />
-            <span className="text-amber-300">Memories</span>
+            <span className="text-amber-300">AR Banquets</span>
           </h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-amber-100/80">
-            An exquisite venue for weddings, receptions, corporate events, and
-            celebrations. Experience elegance, comfort, and world-class service
-            under one roof.
+            Your premier destination for weddings, nikah, receptions,
+            engagements, birthdays, and corporate events. Centrally
+            air-conditioned halls accommodating up to 600 guests with in-house
+            catering, décor, and entertainment.
           </p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
@@ -106,7 +107,7 @@ export default function HomePage() {
             Our Venue
           </p>
           <h2 className="text-3xl font-bold text-gray-900">
-            A Glimpse of Grandeur
+            A Glimpse of AR Banquets
           </h2>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -167,20 +168,31 @@ export default function HomePage() {
         </div>
         <div className="overflow-hidden rounded-2xl border border-gray-200 shadow-lg">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3153.019284179614!2d-122.41941548468204!3d37.77492977975903!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMzfCsDQ2JzI5LjciTiAxMjLCsDI1JzAxLjkiVw!5e0!3m2!1sen!2sus!4v1600000000000!5m2!1sen!2sus"
+            src="https://maps.google.com/maps?q=AR+Banquets+Tolichowki+Hyderabad&t=&z=15&ie=UTF8&iwloc=&output=embed"
             width="100%"
             height="400"
             style={{ border: 0 }}
             allowFullScreen
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            title="Grand Banquet Hall Location"
+            title="AR Banquets Location"
           />
         </div>
         <div className="mt-6 text-center text-gray-600">
-          <p className="font-medium text-gray-900">Grand Banquet Hall</p>
+          <p className="font-medium text-gray-900">AR Banquets</p>
           <p className="text-sm">
-            123 Celebration Avenue, City, State 12345
+            9-4-86/227, AR Center, 5th &amp; 6th Floor, Tolichowki Road,
+            Hyderabad, Telangana 500008
+          </p>
+          <p className="mt-1 text-sm">
+            <a
+              href="https://maps.app.goo.gl/kqXpY5EQDHS1eNVN8"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-700 underline underline-offset-2 hover:text-amber-900"
+            >
+              Get Directions
+            </a>
           </p>
         </div>
       </section>
@@ -192,8 +204,8 @@ export default function HomePage() {
             Ready to Book Your Event?
           </h2>
           <p className="mb-8 text-amber-100/80">
-            Check our availability calendar and reserve your preferred date.
-            Our team will get back to you within 24 hours.
+            Check our availability calendar and reserve your preferred date at
+            AR Banquets. Our team will get back to you within 24 hours.
           </p>
           <Link
             href="/booking"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Calendar, { useCalendarData } from "@/components/Calendar";
 import { EVENT_TYPES } from "@/types";
 import { format } from "date-fns";
@@ -34,6 +35,7 @@ const TABS = [
 ] as const;
 
 export default function AdminPage() {
+  const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -46,6 +48,11 @@ export default function AdminPage() {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   const { disabledDates, refetch: refetchCalendar } = useCalendarData();
+
+  const handleLogout = async () => {
+    await fetch("/api/admin/logout", { method: "POST" });
+    router.push("/admin/login");
+  };
 
   const fetchBookings = useCallback(async () => {
     try {
@@ -176,11 +183,19 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="mt-1 text-gray-600">
-          Manage bookings, approve requests, and block dates
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <p className="mt-1 text-gray-600">
+            Manage bookings, approve requests, and block dates
+          </p>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          Sign Out
+        </button>
       </div>
 
       {/* Feedback */}

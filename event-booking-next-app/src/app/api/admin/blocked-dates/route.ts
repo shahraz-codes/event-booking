@@ -4,9 +4,14 @@ import {
   removeBlockedDate,
   getBlockedDates,
 } from "@/services/calendar.service";
+import { getAdminSession } from "@/lib/auth";
+
+const UNAUTHORIZED = () =>
+  Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
 export async function GET() {
   try {
+    if (!(await getAdminSession())) return UNAUTHORIZED();
     const dates = await getBlockedDates();
     return Response.json({ success: true, data: dates });
   } catch (error) {
@@ -20,6 +25,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await getAdminSession())) return UNAUTHORIZED();
     const body = await request.json();
     const { date, reason } = body;
 
@@ -42,6 +48,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (!(await getAdminSession())) return UNAUTHORIZED();
     const { id } = await request.json();
 
     if (!id) {

@@ -5,9 +5,14 @@ import {
   approveBooking,
   rejectBooking,
 } from "@/services/booking.service";
+import { getAdminSession } from "@/lib/auth";
+
+const UNAUTHORIZED = () =>
+  Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
 export async function GET(request: NextRequest) {
   try {
+    if (!(await getAdminSession())) return UNAUTHORIZED();
     const status = request.nextUrl.searchParams.get("status") as
       | BookingStatus
       | null;
@@ -33,6 +38,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    if (!(await getAdminSession())) return UNAUTHORIZED();
     const body = await request.json();
     const { id, action, adminNote } = body;
 
