@@ -56,6 +56,22 @@ export async function addBlockedDate(date: string, reason?: string) {
 }
 
 export async function removeBlockedDate(id: string) {
+  const blockedDate = await prisma.blockedDate.findUnique({ where: { id } });
+  if (!blockedDate) throw new Error("Blocked date not found");
+
+  const approvedBooking = await prisma.booking.findFirst({
+    where: {
+      date: blockedDate.date,
+      status: "APPROVED",
+    },
+  });
+
+  if (approvedBooking) {
+    throw new Error(
+      "Cannot remove a blocked date tied to an approved booking. Cancel the booking instead."
+    );
+  }
+
   return prisma.blockedDate.delete({ where: { id } });
 }
 

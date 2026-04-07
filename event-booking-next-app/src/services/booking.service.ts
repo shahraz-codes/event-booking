@@ -148,6 +148,34 @@ export async function approveBooking(id: string, adminNote?: string) {
   });
 }
 
+export async function cancelBooking(id: string, adminNote?: string) {
+  return prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({
+      where: { id },
+      select: { id: true, date: true, status: true },
+    });
+
+    if (!booking) throw new Error("Booking not found");
+    if (booking.status !== "APPROVED") {
+      throw new Error("Only approved bookings can be cancelled");
+    }
+
+    const updated = await tx.booking.update({
+      where: { id },
+      data: {
+        status: "REJECTED",
+        adminNote: adminNote || "Cancelled by admin",
+      },
+    });
+
+    await tx.blockedDate.deleteMany({
+      where: { date: booking.date },
+    });
+
+    return updated;
+  });
+}
+
 export async function rejectBooking(id: string, adminNote?: string) {
   const booking = await prisma.booking.findUnique({
     where: { id },

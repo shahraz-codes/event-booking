@@ -4,6 +4,7 @@ import {
   getAllBookings,
   approveBooking,
   rejectBooking,
+  cancelBooking,
 } from "@/services/booking.service";
 import { getAdminSession } from "@/lib/auth";
 
@@ -49,17 +50,21 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (action !== "approve" && action !== "reject") {
+    if (!["approve", "reject", "cancel"].includes(action)) {
       return Response.json(
-        { success: false, error: "Action must be 'approve' or 'reject'" },
+        { success: false, error: "Action must be 'approve', 'reject', or 'cancel'" },
         { status: 400 }
       );
     }
 
-    const booking =
-      action === "approve"
-        ? await approveBooking(id, adminNote)
-        : await rejectBooking(id, adminNote);
+    let booking;
+    if (action === "approve") {
+      booking = await approveBooking(id, adminNote);
+    } else if (action === "cancel") {
+      booking = await cancelBooking(id, adminNote);
+    } else {
+      booking = await rejectBooking(id, adminNote);
+    }
 
     return Response.json({ success: true, data: booking });
   } catch (error) {

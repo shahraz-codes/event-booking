@@ -61,10 +61,12 @@ export async function DELETE(request: NextRequest) {
     await removeBlockedDate(id);
     return Response.json({ success: true });
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to remove blocked date";
     console.error("Remove blocked date error:", error);
     return Response.json(
-      { success: false, error: "Failed to remove blocked date" },
-      { status: 500 }
+      { success: false, error: message },
+      { status: 400 }
     );
   }
 }

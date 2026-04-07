@@ -94,7 +94,7 @@ export default function AdminPage() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
-  const handleAction = async (id: string, action: "approve" | "reject") => {
+  const handleAction = async (id: string, action: "approve" | "reject" | "cancel") => {
     setActionLoading(id);
     try {
       const res = await fetch("/api/admin/bookings", {
@@ -104,7 +104,7 @@ export default function AdminPage() {
       });
       const json = await res.json();
       if (json.success) {
-        showFeedback("success", `Booking ${action}d successfully`);
+        showFeedback("success", `Booking ${action === "cancel" ? "cancelled" : `${action}d`} successfully`);
         fetchBookings();
         fetchBlocked();
         refetchCalendar();
@@ -326,6 +326,23 @@ export default function AdminPage() {
                       </div>
                     </div>
                   )}
+
+                  {b.status === "APPROVED" && (
+                    <div className="border-t border-gray-100 pt-4">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleAction(b.id, "cancel")}
+                          disabled={actionLoading === b.id}
+                          className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                        >
+                          {actionLoading === b.id ? "..." : "Cancel Booking"}
+                        </button>
+                        <span className="text-xs text-gray-500">
+                          This will unblock the date and reject the booking
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -386,27 +403,36 @@ export default function AdminPage() {
               <p className="text-sm text-gray-500">No blocked dates</p>
             ) : (
               <ul className="space-y-2">
-                {blockedDates.map((bd) => (
-                  <li
-                    key={bd.id}
-                    className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {format(new Date(bd.date), "MMM d, yyyy")}
-                      </p>
-                      {bd.reason && (
-                        <p className="text-xs text-gray-500">{bd.reason}</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleUnblockDate(bd.id)}
-                      className="text-xs font-medium text-red-600 hover:text-red-800 transition-colors"
+                {blockedDates.map((bd) => {
+                  const isBookingLinked = bd.reason?.startsWith("Booked:");
+                  return (
+                    <li
+                      key={bd.id}
+                      className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm"
                     >
-                      Remove
-                    </button>
-                  </li>
-                ))}
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {format(new Date(bd.date), "MMM d, yyyy")}
+                        </p>
+                        {bd.reason && (
+                          <p className="text-xs text-gray-500">{bd.reason}</p>
+                        )}
+                      </div>
+                      {isBookingLinked ? (
+                        <span className="text-xs text-gray-400" title="Cancel the booking to unblock this date">
+                          Auto-blocked
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleUnblockDate(bd.id)}
+                          className="text-xs font-medium text-red-600 hover:text-red-800 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
