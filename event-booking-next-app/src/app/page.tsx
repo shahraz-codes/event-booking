@@ -1,25 +1,31 @@
 import Link from "next/link";
+import GalleryImage from "@/components/GalleryImage";
+import InstagramFeed from "@/components/InstagramFeed";
 
 const GALLERY_IMAGES = [
   {
     title: "Banquet Hall",
     desc: "Accommodates up to 600 guests",
     gradient: "from-amber-600 to-amber-800",
+    src: "/images/gallery/banquet-hall.jpg",
   },
   {
     title: "Terrace Lawn",
     desc: "Open-air space for intimate gatherings",
     gradient: "from-emerald-600 to-emerald-800",
+    src: "/images/gallery/terrace-lawn.jpg",
   },
   {
     title: "Elegant Interiors",
     desc: "Pillar-light design & modern false ceiling",
     gradient: "from-rose-600 to-rose-800",
+    src: "/images/gallery/interiors.jpg",
   },
   {
     title: "Flexible Stage",
     desc: "Customizable layouts with professional AV",
     gradient: "from-violet-600 to-violet-800",
+    src: "/images/gallery/stage.jpg",
   },
 ];
 
@@ -116,7 +122,8 @@ export default function HomePage() {
               key={img.title}
               className={`group relative flex h-64 flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
             >
-              <div className="absolute inset-0 bg-black/20" />
+              <GalleryImage src={img.src} alt={img.title} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
               <div className="relative">
                 <h3 className="text-lg font-semibold text-white">
                   {img.title}
@@ -157,6 +164,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Instagram */}
+      <InstagramFeed />
 
       {/* Location */}
       <section className="mx-auto max-w-7xl px-6 py-20">
