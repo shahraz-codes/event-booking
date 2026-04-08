@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AR Banquets - Premium Event Venue in Tolichowki, Hyderabad",
+  title: "AR Banquets",
   description:
     "AR Banquets — Hyderabad's premier banquet hall for weddings, nikah, receptions, engagements, corporate events, and celebrations. Accommodating up to 600 guests with in-house catering, DJ, and décor.",
 };

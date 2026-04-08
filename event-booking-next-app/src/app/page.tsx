@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import GalleryImage from "@/components/GalleryImage";
 import InstagramFeed from "@/components/InstagramFeed";
@@ -75,6 +76,14 @@ export default function HomePage() {
       <section className="relative overflow-hidden bg-gradient-to-br from-amber-900 via-amber-800 to-amber-950 px-6 py-28 text-center text-white">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNCI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
         <div className="relative mx-auto max-w-4xl">
+          <Image
+            src="/images/logo.png"
+            alt="AR Banquets logo"
+            width={120}
+            height={120}
+            className="mx-auto mb-6 rounded-full border-2 border-amber-400/30 shadow-2xl"
+            priority
+          />
           <p className="mb-4 text-sm font-medium uppercase tracking-widest text-amber-300">
             Premium Event Venue &bull; Tolichowki, Hyderabad
           </p>
