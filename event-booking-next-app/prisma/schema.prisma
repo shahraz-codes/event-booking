@@ -35,3 +35,69 @@ model BlockedDate {
   date   DateTime @unique @db.Date
   reason String?
 }
+
+model MediaFile {
+  id           String   @id @default(cuid())
+  url          String
+  publicId     String   @unique
+  fileName     String
+  fileSize     Int // bytes
+  mimeType     String
+  resourceType String // "image" or "video"
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now())
+
+  carouselImages HeroCarouselImage[]
+  galleryItems   GalleryItem[]
+  heroSections   HeroSection[]       @relation("HeroLogo")
+}
+
+model HeroSection {
+  id               String     @id @default(cuid())
+  subtitle         String
+  heading          String
+  headingHighlight String
+  description      String
+  logoUrl          String?
+  logoMediaFileId  String?
+  logoMedia        MediaFile? @relation("HeroLogo", fields: [logoMediaFileId], references: [id])
+  updatedAt        DateTime   @updatedAt
+}
+
+model GalleryItem {
+  id          String     @id @default(cuid())
+  title       String
+  desc        String
+  imageUrl    String
+  gradient    String     @default("from-amber-600 to-amber-800")
+  order       Int        @default(0)
+  visible     Boolean    @default(true)
+  mediaFileId String?
+  mediaFile   MediaFile? @relation(fields: [mediaFileId], references: [id])
+
+  @@index([order])
+}
+
+model ServiceItem {
+  id      String  @id @default(cuid())
+  title   String
+  desc    String
+  iconSvg String
+  order   Int     @default(0)
+  visible Boolean @default(true)
+
+  @@index([order])
+}
+
+model HeroCarouselImage {
+  id          String     @id @default(cuid())
+  imageUrl    String
+  alt         String     @default("")
+  order       Int        @default(0)
+  visible     Boolean    @default(true)
+  mediaFileId String?
+  mediaFile   MediaFile? @relation(fields: [mediaFileId], references: [id])
+
+  @@index([order])
+}
