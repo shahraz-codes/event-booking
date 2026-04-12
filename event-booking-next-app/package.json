@@ -12,6 +12,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
+    "@react-pdf/renderer": "^4.4.1",
     "date-fns": "^4.1.0",
     "next": "16.2.1",
     "next-cloudinary": "^6.17.5",

@@ -19,36 +19,6 @@ const DEFAULT_HERO = {
   logoUrl: "/images/logo.png",
 };
 
-const FALLBACK_GALLERY = [
-  {
-    id: "1",
-    title: "Banquet Hall",
-    desc: "Accommodates up to 600 guests",
-    gradient: "from-amber-600 to-amber-800",
-    imageUrl: "/images/gallery/banquet-hall.jpg",
-  },
-  {
-    id: "2",
-    title: "Terrace Lawn",
-    desc: "Open-air space for intimate gatherings",
-    gradient: "from-emerald-600 to-emerald-800",
-    imageUrl: "/images/gallery/terrace-lawn.jpg",
-  },
-  {
-    id: "3",
-    title: "Elegant Interiors",
-    desc: "Pillar-light design & modern false ceiling",
-    gradient: "from-rose-600 to-rose-800",
-    imageUrl: "/images/gallery/interiors.jpg",
-  },
-  {
-    id: "4",
-    title: "Flexible Stage",
-    desc: "Customizable layouts with professional AV",
-    gradient: "from-violet-600 to-violet-800",
-    imageUrl: "/images/gallery/stage.jpg",
-  },
-];
 
 const FALLBACK_SERVICES = [
   {
@@ -94,13 +64,10 @@ export default async function HomePage() {
         logoUrl: hero.logoMedia?.url ?? hero.logoUrl,
       }
     : DEFAULT_HERO;
-  const gallery =
-    galleryItems.length > 0
-      ? galleryItems.map((item) => ({
-          ...item,
-          imageUrl: item.mediaFile?.url ?? item.imageUrl,
-        }))
-      : FALLBACK_GALLERY;
+  const gallery = galleryItems.map((item) => ({
+    ...item,
+    imageUrl: item.mediaFile?.url ?? item.imageUrl,
+  }));
   const services = serviceItems.length > 0 ? serviceItems : FALLBACK_SERVICES;
   const carouselWithUrls = carouselImages.map((img) => ({
     ...img,
@@ -157,33 +124,35 @@ export default async function HomePage() {
       </section>
 
       {/* Gallery */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="mb-12 text-center">
-          <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
-            Our Venue
-          </p>
-          <h2 className="text-3xl font-bold text-gray-900">
-            A Glimpse of AR Banquets
-          </h2>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {gallery.map((img) => (
-            <div
-              key={img.id}
-              className={`group relative flex h-64 flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
-            >
-              <GalleryImage src={img.imageUrl} alt={img.title} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-              <div className="relative">
-                <h3 className="text-lg font-semibold text-white">
-                  {img.title}
-                </h3>
-                <p className="text-sm text-white/70">{img.desc}</p>
+      {gallery.length > 0 && (
+        <section className="mx-auto max-w-7xl px-6 py-20">
+          <div className="mb-12 text-center">
+            <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
+              Our Venue
+            </p>
+            <h2 className="text-3xl font-bold text-gray-900">
+              A Glimpse of AR Banquets
+            </h2>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {gallery.map((img) => (
+              <div
+                key={img.id}
+                className={`group relative flex h-64 flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
+              >
+                <GalleryImage src={img.imageUrl} alt={img.title} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div className="relative">
+                  <h3 className="text-lg font-semibold text-white">
+                    {img.title}
+                  </h3>
+                  <p className="text-sm text-white/70">{img.desc}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Services */}
       <section className="bg-amber-50/50 px-6 py-20">

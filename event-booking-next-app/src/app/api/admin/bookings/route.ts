@@ -41,7 +41,7 @@ export async function PATCH(request: NextRequest) {
   try {
     if (!(await getAdminSession())) return UNAUTHORIZED();
     const body = await request.json();
-    const { id, action, adminNote } = body;
+    const { id, action, adminNote, totalAmount, advanceAmount } = body;
 
     if (!id || !action) {
       return Response.json(
@@ -59,7 +59,21 @@ export async function PATCH(request: NextRequest) {
 
     let booking;
     if (action === "approve") {
-      booking = await approveBooking(id, adminNote);
+      if (
+        typeof totalAmount !== "number" ||
+        totalAmount <= 0 ||
+        typeof advanceAmount !== "number" ||
+        advanceAmount < 0
+      ) {
+        return Response.json(
+          {
+            success: false,
+            error: "Total amount and advance amount are required for approval",
+          },
+          { status: 400 }
+        );
+      }
+      booking = await approveBooking(id, totalAmount, advanceAmount, adminNote);
     } else if (action === "cancel") {
       booking = await cancelBooking(id, adminNote);
     } else {

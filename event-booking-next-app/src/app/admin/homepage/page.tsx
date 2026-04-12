@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { CldUploadWidget } from "next-cloudinary";
 import Image from "next/image";
 import Link from "next/link";
+import { ToastProvider, useToast } from "@/components/Toast";
+import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -110,17 +112,18 @@ const TAB_LABELS: Record<Tab, string> = {
 };
 
 export default function AdminHomepagePage() {
+  return (
+    <ToastProvider>
+      <ConfirmProvider>
+        <AdminHomepageContent />
+      </ConfirmProvider>
+    </ToastProvider>
+  );
+}
+
+function AdminHomepageContent() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("media");
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    msg: string;
-  } | null>(null);
-
-  const showFeedback = (type: "success" | "error", msg: string) => {
-    setFeedback({ type, msg });
-    setTimeout(() => setFeedback(null), 4000);
-  };
 
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -156,19 +159,6 @@ export default function AdminHomepagePage() {
         </div>
       </div>
 
-      {/* Feedback */}
-      {feedback && (
-        <div
-          className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
-            feedback.type === "success"
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-red-200 bg-red-50 text-red-800"
-          }`}
-        >
-          {feedback.msg}
-        </div>
-      )}
-
       {/* Tabs */}
       <div className="mb-6 flex gap-1 rounded-xl bg-gray-100 p-1">
         {(["media", "hero", "carousel", "gallery", "services"] as Tab[]).map(
@@ -189,19 +179,11 @@ export default function AdminHomepagePage() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "media" && (
-        <MediaLibraryEditor showFeedback={showFeedback} />
-      )}
-      {activeTab === "hero" && <HeroEditor showFeedback={showFeedback} />}
-      {activeTab === "carousel" && (
-        <CarouselEditor showFeedback={showFeedback} />
-      )}
-      {activeTab === "gallery" && (
-        <GalleryEditor showFeedback={showFeedback} />
-      )}
-      {activeTab === "services" && (
-        <ServicesEditor showFeedback={showFeedback} />
-      )}
+      {activeTab === "media" && <MediaLibraryEditor />}
+      {activeTab === "hero" && <HeroEditor />}
+      {activeTab === "carousel" && <CarouselEditor />}
+      {activeTab === "gallery" && <GalleryEditor />}
+      {activeTab === "services" && <ServicesEditor />}
     </div>
   );
 }
@@ -218,11 +200,9 @@ function formatBytes(bytes: number) {
 
 // ── Media Library Editor ────────────────────────────────────────────
 
-function MediaLibraryEditor({
-  showFeedback,
-}: {
-  showFeedback: (type: "success" | "error", msg: string) => void;
-}) {
+function MediaLibraryEditor() {
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [usage, setUsage] = useState<MediaUsage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -241,11 +221,11 @@ function MediaLibraryEditor({
       if (filesJson.success) setFiles(filesJson.data);
       if (usageJson.success) setUsage(usageJson.data);
     } catch {
-      showFeedback("error", "Failed to load media library");
+      toast("error", "Failed to load media library");
     } finally {
       setLoading(false);
     }
-  }, [showFeedback]);
+  }, [toast]);
 
   useEffect(() => {
     fetchData();
@@ -275,18 +255,23 @@ function MediaLibraryEditor({
       });
       const json = await res.json();
       if (json.success) {
-        showFeedback("success", "File uploaded");
+        toast("success", "File uploaded");
         fetchData();
       } else {
-        showFeedback("error", json.error || "Failed to save file record");
+        toast("error", json.error || "Failed to save file record");
       }
     } catch {
-      showFeedback("error", "Failed to save file record");
+      toast("error", "Failed to save file record");
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this media file?")) return;
+    const ok = await confirm({
+      title: "Delete media file",
+      message: "This file will be permanently removed. Any sections using it will lose their image.",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     setDeleting(id);
     try {
       const res = await fetch("/api/admin/homepage/media", {
@@ -296,13 +281,13 @@ function MediaLibraryEditor({
       });
       const json = await res.json();
       if (json.success) {
-        showFeedback("success", "File deleted");
+        toast("success", "File deleted");
         fetchData();
       } else {
-        showFeedback("error", json.error || "Failed to delete");
+        toast("error", json.error || "Failed to delete");
       }
     } catch {
-      showFeedback("error", "Failed to delete file");
+      toast("error", "Failed to delete file");
     } finally {
       setDeleting(null);
     }
@@ -596,11 +581,8 @@ function MediaPickerModal({
 
 // ── Hero Editor ─────────────────────────────────────────────────────
 
-function HeroEditor({
-  showFeedback,
-}: {
-  showFeedback: (type: "success" | "error", msg: string) => void;
-}) {
+function HeroEditor() {
+  const { toast } = useToast();
   const [hero, setHero] = useState<HeroData>({
     subtitle: "",
     heading: "",
@@ -643,12 +625,12 @@ function HeroEditor({
       const json = await res.json();
       if (json.success) {
         setHero(json.data);
-        showFeedback("success", "Hero section saved");
+        toast("success", "Hero section saved");
       } else {
-        showFeedback("error", json.error || "Failed to save");
+        toast("error", json.error || "Failed to save");
       }
     } catch {
-      showFeedback("error", "Failed to save hero section");
+      toast("error", "Failed to save hero section");
     } finally {
       setSaving(false);
     }
@@ -771,11 +753,9 @@ function HeroEditor({
 
 // ── Carousel Editor ─────────────────────────────────────────────────
 
-function CarouselEditor({
-  showFeedback,
-}: {
-  showFeedback: (type: "success" | "error", msg: string) => void;
-}) {
+function CarouselEditor() {
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
   const [items, setItems] = useState<CarouselImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -787,18 +767,23 @@ function CarouselEditor({
       const json = await res.json();
       if (json.success) setItems(json.data);
     } catch {
-      showFeedback("error", "Failed to load carousel images");
+      toast("error", "Failed to load carousel images");
     } finally {
       setLoading(false);
     }
-  }, [showFeedback]);
+  }, [toast]);
 
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this carousel image?")) return;
+    const ok = await confirm({
+      title: "Delete carousel image",
+      message: "This image will be removed from the hero carousel.",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/admin/homepage/carousel", {
         method: "DELETE",
@@ -807,13 +792,13 @@ function CarouselEditor({
       });
       const json = await res.json();
       if (json.success) {
-        showFeedback("success", "Carousel image deleted");
+        toast("success", "Carousel image deleted");
         fetchItems();
       } else {
-        showFeedback("error", json.error || "Failed to delete");
+        toast("error", json.error || "Failed to delete");
       }
     } catch {
-      showFeedback("error", "Failed to delete carousel image");
+      toast("error", "Failed to delete carousel image");
     }
   };
 
@@ -828,10 +813,10 @@ function CarouselEditor({
       if (json.success) {
         fetchItems();
       } else {
-        showFeedback("error", json.error || "Failed to update");
+        toast("error", json.error || "Failed to update");
       }
     } catch {
-      showFeedback("error", "Failed to update carousel image");
+      toast("error", "Failed to update carousel image");
     }
   };
 
@@ -865,10 +850,9 @@ function CarouselEditor({
           onSave={() => {
             setShowAddForm(false);
             fetchItems();
-            showFeedback("success", "Carousel image added");
+            toast("success", "Carousel image added");
           }}
           onCancel={() => setShowAddForm(false)}
-          showFeedback={showFeedback}
         />
       )}
 
@@ -887,10 +871,9 @@ function CarouselEditor({
                 onSave={() => {
                   setEditingId(null);
                   fetchItems();
-                  showFeedback("success", "Carousel image updated");
+                  toast("success", "Carousel image updated");
                 }}
                 onCancel={() => setEditingId(null)}
-                showFeedback={showFeedback}
               />
             ) : (
               <div
@@ -952,13 +935,12 @@ function CarouselImageForm({
   item,
   onSave,
   onCancel,
-  showFeedback,
 }: {
   item?: CarouselImage;
   onSave: () => void;
   onCancel: () => void;
-  showFeedback: (type: "success" | "error", msg: string) => void;
 }) {
+  const { toast } = useToast();
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(
     item?.mediaFile ?? null
   );
@@ -971,7 +953,7 @@ function CarouselImageForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedMedia && !item?.mediaFileId) {
-      showFeedback("error", "Please select an image from the media library");
+      toast("error", "Please select an image from the media library");
       return;
     }
     setSaving(true);
@@ -995,10 +977,10 @@ function CarouselImageForm({
       if (json.success) {
         onSave();
       } else {
-        showFeedback("error", json.error || "Failed to save");
+        toast("error", json.error || "Failed to save");
       }
     } catch {
-      showFeedback("error", "Failed to save carousel image");
+      toast("error", "Failed to save carousel image");
     } finally {
       setSaving(false);
     }
@@ -1074,11 +1056,9 @@ function CarouselImageForm({
 
 // ── Gallery Editor ──────────────────────────────────────────────────
 
-function GalleryEditor({
-  showFeedback,
-}: {
-  showFeedback: (type: "success" | "error", msg: string) => void;
-}) {
+function GalleryEditor() {
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1090,18 +1070,23 @@ function GalleryEditor({
       const json = await res.json();
       if (json.success) setItems(json.data);
     } catch {
-      showFeedback("error", "Failed to load gallery items");
+      toast("error", "Failed to load gallery items");
     } finally {
       setLoading(false);
     }
-  }, [showFeedback]);
+  }, [toast]);
 
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this gallery item?")) return;
+    const ok = await confirm({
+      title: "Delete gallery item",
+      message: "This gallery item will be permanently removed from the homepage.",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/admin/homepage/gallery", {
         method: "DELETE",
@@ -1110,13 +1095,13 @@ function GalleryEditor({
       });
       const json = await res.json();
       if (json.success) {
-        showFeedback("success", "Gallery item deleted");
+        toast("success", "Gallery item deleted");
         fetchItems();
       } else {
-        showFeedback("error", json.error || "Failed to delete");
+        toast("error", json.error || "Failed to delete");
       }
     } catch {
-      showFeedback("error", "Failed to delete gallery item");
+      toast("error", "Failed to delete gallery item");
     }
   };
 
@@ -1131,10 +1116,10 @@ function GalleryEditor({
       if (json.success) {
         fetchItems();
       } else {
-        showFeedback("error", json.error || "Failed to update");
+        toast("error", json.error || "Failed to update");
       }
     } catch {
-      showFeedback("error", "Failed to update gallery item");
+      toast("error", "Failed to update gallery item");
     }
   };
 
@@ -1160,10 +1145,9 @@ function GalleryEditor({
           onSave={() => {
             setShowAddForm(false);
             fetchItems();
-            showFeedback("success", "Gallery item added");
+            toast("success", "Gallery item added");
           }}
           onCancel={() => setShowAddForm(false)}
-          showFeedback={showFeedback}
         />
       )}
 
@@ -1181,10 +1165,9 @@ function GalleryEditor({
                 onSave={() => {
                   setEditingId(null);
                   fetchItems();
-                  showFeedback("success", "Gallery item updated");
+                  toast("success", "Gallery item updated");
                 }}
                 onCancel={() => setEditingId(null)}
-                showFeedback={showFeedback}
               />
             ) : (
               <div
@@ -1245,13 +1228,12 @@ function GalleryItemForm({
   item,
   onSave,
   onCancel,
-  showFeedback,
 }: {
   item?: GalleryItem;
   onSave: () => void;
   onCancel: () => void;
-  showFeedback: (type: "success" | "error", msg: string) => void;
 }) {
+  const { toast } = useToast();
   const [title, setTitle] = useState(item?.title ?? "");
   const [desc, setDesc] = useState(item?.desc ?? "");
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(
@@ -1268,7 +1250,7 @@ function GalleryItemForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedMedia && !item?.mediaFileId) {
-      showFeedback("error", "Please select an image from the media library");
+      toast("error", "Please select an image from the media library");
       return;
     }
     setSaving(true);
@@ -1294,10 +1276,10 @@ function GalleryItemForm({
       if (json.success) {
         onSave();
       } else {
-        showFeedback("error", json.error || "Failed to save");
+        toast("error", json.error || "Failed to save");
       }
     } catch {
-      showFeedback("error", "Failed to save gallery item");
+      toast("error", "Failed to save gallery item");
     } finally {
       setSaving(false);
     }
@@ -1397,11 +1379,9 @@ function GalleryItemForm({
 
 // ── Services Editor ─────────────────────────────────────────────────
 
-function ServicesEditor({
-  showFeedback,
-}: {
-  showFeedback: (type: "success" | "error", msg: string) => void;
-}) {
+function ServicesEditor() {
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
   const [items, setItems] = useState<ServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1413,18 +1393,23 @@ function ServicesEditor({
       const json = await res.json();
       if (json.success) setItems(json.data);
     } catch {
-      showFeedback("error", "Failed to load service items");
+      toast("error", "Failed to load service items");
     } finally {
       setLoading(false);
     }
-  }, [showFeedback]);
+  }, [toast]);
 
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this service?")) return;
+    const ok = await confirm({
+      title: "Delete service",
+      message: "This service will be permanently removed from the homepage.",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/admin/homepage/services", {
         method: "DELETE",
@@ -1433,13 +1418,13 @@ function ServicesEditor({
       });
       const json = await res.json();
       if (json.success) {
-        showFeedback("success", "Service deleted");
+        toast("success", "Service deleted");
         fetchItems();
       } else {
-        showFeedback("error", json.error || "Failed to delete");
+        toast("error", json.error || "Failed to delete");
       }
     } catch {
-      showFeedback("error", "Failed to delete service");
+      toast("error", "Failed to delete service");
     }
   };
 
@@ -1454,10 +1439,10 @@ function ServicesEditor({
       if (json.success) {
         fetchItems();
       } else {
-        showFeedback("error", json.error || "Failed to update");
+        toast("error", json.error || "Failed to update");
       }
     } catch {
-      showFeedback("error", "Failed to update service");
+      toast("error", "Failed to update service");
     }
   };
 
@@ -1483,10 +1468,9 @@ function ServicesEditor({
           onSave={() => {
             setShowAddForm(false);
             fetchItems();
-            showFeedback("success", "Service added");
+            toast("success", "Service added");
           }}
           onCancel={() => setShowAddForm(false)}
-          showFeedback={showFeedback}
         />
       )}
 
@@ -1504,10 +1488,9 @@ function ServicesEditor({
                 onSave={() => {
                   setEditingId(null);
                   fetchItems();
-                  showFeedback("success", "Service updated");
+                  toast("success", "Service updated");
                 }}
                 onCancel={() => setEditingId(null)}
-                showFeedback={showFeedback}
               />
             ) : (
               <div
@@ -1575,13 +1558,12 @@ function ServiceItemForm({
   item,
   onSave,
   onCancel,
-  showFeedback,
 }: {
   item?: ServiceItem;
   onSave: () => void;
   onCancel: () => void;
-  showFeedback: (type: "success" | "error", msg: string) => void;
 }) {
+  const { toast } = useToast();
   const [title, setTitle] = useState(item?.title ?? "");
   const [desc, setDesc] = useState(item?.desc ?? "");
   const [iconSvg, setIconSvg] = useState(item?.iconSvg ?? "");
@@ -1590,7 +1572,7 @@ function ServiceItemForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!iconSvg) {
-      showFeedback("error", "Please select an icon");
+      toast("error", "Please select an icon");
       return;
     }
     setSaving(true);
@@ -1609,10 +1591,10 @@ function ServiceItemForm({
       if (json.success) {
         onSave();
       } else {
-        showFeedback("error", json.error || "Failed to save");
+        toast("error", json.error || "Failed to save");
       }
     } catch {
-      showFeedback("error", "Failed to save service");
+      toast("error", "Failed to save service");
     } finally {
       setSaving(false);
     }

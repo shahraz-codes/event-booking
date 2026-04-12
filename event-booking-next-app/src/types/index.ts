@@ -32,6 +32,14 @@ export const EVENT_TYPES = [
 ] as const;
 
 export type BookingStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type CommentSender = "ADMIN" | "CUSTOMER";
+
+export interface BookingComment {
+  id: string;
+  message: string;
+  sender: CommentSender;
+  createdAt: string;
+}
 
 export interface BookingRecord {
   id: string;
@@ -43,6 +51,9 @@ export interface BookingRecord {
   notes: string | null;
   status: BookingStatus;
   adminNote: string | null;
+  totalAmount: number | null;
+  advanceAmount: number | null;
+  comments: BookingComment[];
   createdAt: string;
 }
 

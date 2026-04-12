@@ -23,45 +23,6 @@ async function main() {
     console.log("HeroSection already exists, skipping");
   }
 
-  const galleryCount = await prisma.galleryItem.count();
-  if (galleryCount === 0) {
-    await prisma.galleryItem.createMany({
-      data: [
-        {
-          title: "Banquet Hall",
-          desc: "Accommodates up to 600 guests",
-          gradient: "from-amber-600 to-amber-800",
-          imageUrl: "/images/gallery/banquet-hall.jpg",
-          order: 1,
-        },
-        {
-          title: "Terrace Lawn",
-          desc: "Open-air space for intimate gatherings",
-          gradient: "from-emerald-600 to-emerald-800",
-          imageUrl: "/images/gallery/terrace-lawn.jpg",
-          order: 2,
-        },
-        {
-          title: "Elegant Interiors",
-          desc: "Pillar-light design & modern false ceiling",
-          gradient: "from-rose-600 to-rose-800",
-          imageUrl: "/images/gallery/interiors.jpg",
-          order: 3,
-        },
-        {
-          title: "Flexible Stage",
-          desc: "Customizable layouts with professional AV",
-          gradient: "from-violet-600 to-violet-800",
-          imageUrl: "/images/gallery/stage.jpg",
-          order: 4,
-        },
-      ],
-    });
-    console.log("Seeded 4 GalleryItems");
-  } else {
-    console.log(`${galleryCount} GalleryItems already exist, skipping`);
-  }
-
   const serviceCount = await prisma.serviceItem.count();
   if (serviceCount === 0) {
     await prisma.serviceItem.createMany({
