@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import GalleryImage from "@/components/GalleryImage";
+import GallerySection from "@/components/GallerySection";
 import HeroCarousel from "@/components/HeroCarousel";
 import InstagramFeed from "@/components/InstagramFeed";
 import {
@@ -124,35 +124,7 @@ export default async function HomePage() {
       </section>
 
       {/* Gallery */}
-      {gallery.length > 0 && (
-        <section className="mx-auto max-w-7xl px-6 py-20">
-          <div className="mb-12 text-center">
-            <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
-              Our Venue
-            </p>
-            <h2 className="text-3xl font-bold text-gray-900">
-              A Glimpse of AR Banquets
-            </h2>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {gallery.map((img) => (
-              <div
-                key={img.id}
-                className={`group relative flex h-64 flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
-              >
-                <GalleryImage src={img.imageUrl} alt={img.title} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                <div className="relative">
-                  <h3 className="text-lg font-semibold text-white">
-                    {img.title}
-                  </h3>
-                  <p className="text-sm text-white/70">{img.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {gallery.length > 0 && <GallerySection gallery={gallery} />}
 
       {/* Services */}
       <section className="bg-amber-50/50 px-6 py-20">
