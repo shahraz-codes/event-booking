@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { BookingStatus } from "@/generated/prisma/client";
+import { BookingStatus, CommentSender } from "@/generated/prisma/client";
 import { format } from "date-fns";
 
 export async function generateBookingId(): Promise<string> {
@@ -64,7 +64,18 @@ export async function getBookingByBookingId(bookingId: string) {
       notes: true,
       status: true,
       adminNote: true,
+      totalAmount: true,
+      advanceAmount: true,
       createdAt: true,
+      comments: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          message: true,
+          sender: true,
+          createdAt: true,
+        },
+      },
     },
   });
 }
@@ -83,12 +94,28 @@ export async function getAllBookings(status?: BookingStatus) {
       notes: true,
       status: true,
       adminNote: true,
+      totalAmount: true,
+      advanceAmount: true,
       createdAt: true,
+      comments: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          message: true,
+          sender: true,
+          createdAt: true,
+        },
+      },
     },
   });
 }
 
-export async function approveBooking(id: string, adminNote?: string) {
+export async function approveBooking(
+  id: string,
+  totalAmount: number,
+  advanceAmount: number,
+  adminNote?: string
+) {
   return prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
       where: { id },
@@ -132,6 +159,8 @@ export async function approveBooking(id: string, adminNote?: string) {
       data: {
         status: "APPROVED",
         adminNote: adminNote || null,
+        totalAmount,
+        advanceAmount,
       },
     });
 
@@ -142,6 +171,34 @@ export async function approveBooking(id: string, adminNote?: string) {
         date: booking.date,
         reason: `Booked: ${updated.bookingId}`,
       },
+    });
+
+    return updated;
+  });
+}
+
+export async function cancelBooking(id: string, adminNote?: string) {
+  return prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({
+      where: { id },
+      select: { id: true, date: true, status: true },
+    });
+
+    if (!booking) throw new Error("Booking not found");
+    if (booking.status !== "APPROVED") {
+      throw new Error("Only approved bookings can be cancelled");
+    }
+
+    const updated = await tx.booking.update({
+      where: { id },
+      data: {
+        status: "REJECTED",
+        adminNote: adminNote || "Cancelled by admin",
+      },
+    });
+
+    await tx.blockedDate.deleteMany({
+      where: { date: booking.date },
     });
 
     return updated;
@@ -164,6 +221,96 @@ export async function rejectBooking(id: string, adminNote?: string) {
     data: {
       status: "REJECTED",
       adminNote: adminNote || null,
+    },
+  });
+}
+
+export async function addComment(
+  bookingId: string,
+  message: string,
+  sender: CommentSender
+) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true },
+  });
+
+  if (!booking) throw new Error("Booking not found");
+
+  return prisma.comment.create({
+    data: {
+      bookingId,
+      message,
+      sender,
+    },
+    select: {
+      id: true,
+      message: true,
+      sender: true,
+      createdAt: true,
+    },
+  });
+}
+
+export async function addCommentByBookingId(
+  bookingId: string,
+  phone: string,
+  message: string,
+  sender: CommentSender
+) {
+  const booking = await prisma.booking.findUnique({
+    where: { bookingId },
+    select: { id: true, phone: true },
+  });
+
+  if (!booking) throw new Error("Booking not found");
+  if (booking.phone !== phone) throw new Error("Phone number does not match");
+
+  return prisma.comment.create({
+    data: {
+      bookingId: booking.id,
+      message,
+      sender,
+    },
+    select: {
+      id: true,
+      message: true,
+      sender: true,
+      createdAt: true,
+    },
+  });
+}
+
+export async function getComments(bookingId: string) {
+  return prisma.comment.findMany({
+    where: { bookingId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      message: true,
+      sender: true,
+      createdAt: true,
+    },
+  });
+}
+
+export async function getCommentsByBookingId(bookingId: string, phone: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { bookingId },
+    select: { id: true, phone: true },
+  });
+
+  if (!booking) throw new Error("Booking not found");
+  if (booking.phone !== phone) throw new Error("Phone number does not match");
+
+  return prisma.comment.findMany({
+    where: { bookingId: booking.id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      message: true,
+      sender: true,
+      createdAt: true,
     },
   });
 }

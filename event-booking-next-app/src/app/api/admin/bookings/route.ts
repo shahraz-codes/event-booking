@@ -4,10 +4,16 @@ import {
   getAllBookings,
   approveBooking,
   rejectBooking,
+  cancelBooking,
 } from "@/services/booking.service";
+import { getAdminSession } from "@/lib/auth";
+
+const UNAUTHORIZED = () =>
+  Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
 export async function GET(request: NextRequest) {
   try {
+    if (!(await getAdminSession())) return UNAUTHORIZED();
     const status = request.nextUrl.searchParams.get("status") as
       | BookingStatus
       | null;
@@ -33,8 +39,9 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    if (!(await getAdminSession())) return UNAUTHORIZED();
     const body = await request.json();
-    const { id, action, adminNote } = body;
+    const { id, action, adminNote, totalAmount, advanceAmount } = body;
 
     if (!id || !action) {
       return Response.json(
@@ -43,17 +50,35 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (action !== "approve" && action !== "reject") {
+    if (!["approve", "reject", "cancel"].includes(action)) {
       return Response.json(
-        { success: false, error: "Action must be 'approve' or 'reject'" },
+        { success: false, error: "Action must be 'approve', 'reject', or 'cancel'" },
         { status: 400 }
       );
     }
 
-    const booking =
-      action === "approve"
-        ? await approveBooking(id, adminNote)
-        : await rejectBooking(id, adminNote);
+    let booking;
+    if (action === "approve") {
+      if (
+        typeof totalAmount !== "number" ||
+        totalAmount <= 0 ||
+        typeof advanceAmount !== "number" ||
+        advanceAmount < 0
+      ) {
+        return Response.json(
+          {
+            success: false,
+            error: "Total amount and advance amount are required for approval",
+          },
+          { status: 400 }
+        );
+      }
+      booking = await approveBooking(id, totalAmount, advanceAmount, adminNote);
+    } else if (action === "cancel") {
+      booking = await cancelBooking(id, adminNote);
+    } else {
+      booking = await rejectBooking(id, adminNote);
+    }
 
     return Response.json({ success: true, data: booking });
   } catch (error) {
