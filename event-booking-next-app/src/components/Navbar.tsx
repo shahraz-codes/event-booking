@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,17 +19,29 @@ function isAdminLoggedIn(): boolean {
 export default function Navbar() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     setIsAdmin(isAdminLoggedIn());
   }, [pathname]);
 
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
+
+  useEffect(() => {
+    closeMobile();
+  }, [pathname, closeMobile]);
+
   const isAdminPage = pathname.startsWith("/admin");
+
+  const allLinks = [
+    ...(!isAdminPage ? navLinks : []),
+    ...(isAdmin ? [{ href: "/admin", label: "Admin Dashboard" }] : []),
+  ];
 
   return (
     <header className="sticky top-0 z-50 border-b border-amber-100 bg-white/80 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-amber-900">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+        <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-amber-900 sm:gap-2.5 sm:text-xl">
           <Image
             src="/images/logo.png"
             alt="AR Banquets logo"
@@ -40,13 +52,56 @@ export default function Navbar() {
           AR Banquets
         </Link>
 
-        <div className="flex items-center gap-1">
-          {!isAdminPage &&
-            navLinks.map((link) => (
+        {/* Desktop nav */}
+        <div className="hidden items-center gap-1 sm:flex">
+          {allLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                pathname === link.href
+                  ? "bg-amber-100 text-amber-900"
+                  : "text-gray-600 hover:bg-amber-50 hover:text-amber-800"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+
+        {/* Mobile hamburger */}
+        <button
+          type="button"
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          onClick={() => setMobileOpen((o) => !o)}
+          className="inline-flex items-center justify-center rounded-lg p-2 text-amber-900 transition-colors hover:bg-amber-50 sm:hidden"
+        >
+          <svg
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+          >
+            {mobileOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            )}
+          </svg>
+        </button>
+      </nav>
+
+      {/* Mobile dropdown */}
+      {mobileOpen && (
+        <div className="border-t border-amber-100 bg-white/95 backdrop-blur-md sm:hidden">
+          <div className="flex flex-col gap-1 px-4 py-3">
+            {allLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                onClick={closeMobile}
+                className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
                   pathname === link.href
                     ? "bg-amber-100 text-amber-900"
                     : "text-gray-600 hover:bg-amber-50 hover:text-amber-800"
@@ -55,21 +110,9 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                isAdminPage
-                  ? "bg-amber-100 text-amber-900"
-                  : "text-gray-600 hover:bg-amber-50 hover:text-amber-800"
-              }`}
-            >
-              Admin Dashboard
-            </Link>
-          )}
+          </div>
         </div>
-      </nav>
+      )}
     </header>
   );
 }
