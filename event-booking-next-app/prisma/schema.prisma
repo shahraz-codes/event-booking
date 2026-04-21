@@ -9,8 +9,16 @@ datasource db {
 
 enum BookingStatus {
   PENDING
+  QUOTATION_SENT
+  QUOTATION_FINALIZED
   APPROVED
   REJECTED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  FINALIZED
 }
 
 enum CommentSender {
@@ -19,23 +27,54 @@ enum CommentSender {
 }
 
 model Booking {
-  id            String        @id @default(cuid())
-  bookingId     String        @unique
-  name          String
-  phone         String
-  date          DateTime      @db.Date
-  eventType     String
-  notes         String?
-  status        BookingStatus @default(PENDING)
-  adminNote     String?
-  totalAmount   Float?
-  advanceAmount Float?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  comments      Comment[]
+  id                String        @id @default(cuid())
+  bookingId         String        @unique
+  name              String
+  phone             String
+  date              DateTime      @db.Date
+  eventType         String
+  numberOfAttendees Int           @default(0)
+  notes             String?
+  status            BookingStatus @default(PENDING)
+  secretCode        String?       @unique
+  adminNote         String?
+  totalAmount       Float?
+  advanceAmount     Float?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  comments          Comment[]
+  quotation         Quotation?
 
   @@index([date])
   @@index([status])
+}
+
+model Quotation {
+  id            String          @id @default(cuid())
+  booking       Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId     String          @unique
+  status        QuotationStatus @default(DRAFT)
+  totalAmount   Float
+  advanceAmount Float           @default(0)
+  notes         String?
+  items         QuotationItem[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  finalizedAt   DateTime?
+}
+
+model QuotationItem {
+  id          String    @id @default(cuid())
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  quotationId String
+  particular  String
+  quantity    Int?
+  unit        String?
+  rate        Float?
+  amount      Float
+  order       Int       @default(0)
+
+  @@index([quotationId])
 }
 
 model Comment {

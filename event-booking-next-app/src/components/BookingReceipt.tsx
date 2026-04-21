@@ -10,6 +10,7 @@ import {
   pdf,
 } from "@react-pdf/renderer";
 import { format } from "date-fns";
+import type { QuotationData } from "@/types";
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   wedding: "Wedding",
@@ -26,9 +27,11 @@ interface ReceiptBooking {
   phone: string;
   date: string;
   eventType: string;
+  numberOfAttendees?: number;
   totalAmount: number | null;
   advanceAmount: number | null;
   createdAt: string;
+  quotation?: QuotationData;
 }
 
 const styles = StyleSheet.create({
@@ -89,6 +92,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#fde68a",
   },
+  tableHeader: {
+    flexDirection: "row",
+    borderBottomWidth: 2,
+    borderBottomColor: "#d97706",
+    paddingBottom: 4,
+    marginBottom: 4,
+  },
+  tableHeaderCell: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 9,
+    color: "#6b7280",
+    textTransform: "uppercase",
+  },
+  tableRow: {
+    flexDirection: "row",
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  colNum: { width: "8%" },
+  colParticular: { width: "62%" },
+  colAmount: { width: "30%", textAlign: "right" },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -128,6 +153,8 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
   const total = booking.totalAmount ?? 0;
   const advance = booking.advanceAmount ?? 0;
   const balance = total - advance;
+  const hasQuotationItems =
+    booking.quotation && booking.quotation.items.length > 0;
 
   return (
     <Document>
@@ -135,8 +162,8 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
         <View style={styles.header}>
           <Text style={styles.title}>AR Banquets</Text>
           <Text style={styles.subtitle}>
-            9-4-86/227, AR Center, 5th & 6th Floor, Tolichowki Road, Hyderabad,
-            Telangana 500008
+            9-4-86/227, AR Center, 5th &amp; 6th Floor, Tolichowki Road,
+            Hyderabad, Telangana 500008
           </Text>
         </View>
 
@@ -168,6 +195,15 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
               {format(new Date(booking.date), "EEEE, MMMM d, yyyy")}
             </Text>
           </View>
+          {booking.numberOfAttendees != null &&
+            booking.numberOfAttendees > 0 && (
+              <View style={styles.row}>
+                <Text style={styles.label}>Number of Guests</Text>
+                <Text style={styles.value}>
+                  {booking.numberOfAttendees}
+                </Text>
+              </View>
+            )}
           <View style={styles.row}>
             <Text style={styles.label}>Booking Date</Text>
             <Text style={styles.value}>
@@ -175,6 +211,48 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
             </Text>
           </View>
         </View>
+
+        {hasQuotationItems && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Package Breakdown</Text>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderCell, styles.colNum]}>#</Text>
+              <Text style={[styles.tableHeaderCell, styles.colParticular]}>
+                Particular
+              </Text>
+              <Text
+                style={[
+                  styles.tableHeaderCell,
+                  styles.colAmount,
+                  { textAlign: "right" },
+                ]}
+              >
+                Amount
+              </Text>
+            </View>
+            {booking.quotation!.items.map((item, idx) => (
+              <View key={item.id || idx} style={styles.tableRow}>
+                <Text style={[{ fontSize: 10 }, styles.colNum]}>
+                  {idx + 1}
+                </Text>
+                <Text style={[{ fontSize: 10 }, styles.colParticular]}>
+                  {item.particular}
+                  {item.quantity && item.unit
+                    ? ` (${item.quantity} ${item.unit})`
+                    : ""}
+                </Text>
+                <Text
+                  style={[
+                    { fontSize: 10, fontFamily: "Helvetica-Bold" },
+                    styles.colAmount,
+                  ]}
+                >
+                  {formatCurrency(item.amount || 0)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Summary</Text>
@@ -202,7 +280,8 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
         </View>
 
         <Text style={styles.footer}>
-          This is a computer-generated receipt. For queries, contact AR Banquets.
+          This is a computer-generated receipt. For queries, contact AR
+          Banquets.
         </Text>
       </Page>
     </Document>
@@ -241,8 +320,18 @@ export default function DownloadReceipt({
       disabled={generating}
       className="inline-flex items-center gap-2 rounded-xl bg-green-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-800 disabled:opacity-50"
     >
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      <svg
+        className="h-4 w-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
       </svg>
       {generating ? "Generating..." : "Download Receipt"}
     </button>

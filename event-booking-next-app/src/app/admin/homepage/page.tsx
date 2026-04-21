@@ -207,6 +207,11 @@ function MediaLibraryEditor() {
   const [usage, setUsage] = useState<MediaUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "image" | "video">("all");
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -238,6 +243,8 @@ function MediaLibraryEditor() {
       return;
 
     const data = info as Record<string, unknown>;
+    setUploading(true);
+    setUploadProgress(90);
     try {
       const res = await fetch("/api/admin/homepage/media", {
         method: "POST",
@@ -255,20 +262,51 @@ function MediaLibraryEditor() {
       });
       const json = await res.json();
       if (json.success) {
+        setUploadProgress(100);
         toast("success", "File uploaded");
         fetchData();
       } else {
         toast("error", json.error || "Failed to save file record");
+        await cleanupOrphanedUpload(data.public_id as string, data.resource_type as string);
       }
     } catch {
       toast("error", "Failed to save file record");
+      await cleanupOrphanedUpload(data.public_id as string, data.resource_type as string);
+    } finally {
+      setTimeout(() => {
+        setUploading(false);
+        setUploadProgress(0);
+      }, 500);
+    }
+  };
+
+  const cleanupOrphanedUpload = async (publicId: string, resourceType: string) => {
+    try {
+      await fetch("/api/admin/homepage/media/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicId, resourceType }),
+      });
+    } catch {
+      // Best-effort cleanup
+    }
+  };
+
+  const handleCopyUrl = async (file: MediaFile) => {
+    try {
+      await navigator.clipboard.writeText(file.url);
+      setCopied(file.id);
+      toast("success", "URL copied to clipboard");
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      toast("error", "Failed to copy URL");
     }
   };
 
   const handleDelete = async (id: string) => {
     const ok = await confirm({
       title: "Delete media file",
-      message: "This file will be permanently removed. Any sections using it will lose their image.",
+      message: "This file will be permanently removed from storage. Files currently in use cannot be deleted.",
       confirmLabel: "Delete",
     });
     if (!ok) return;
@@ -293,11 +331,23 @@ function MediaLibraryEditor() {
     }
   };
 
+  const getVideoThumbnail = (publicId: string) => {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    return `https://res.cloudinary.com/${cloudName}/video/upload/so_0,w_400,h_225,c_fill/${publicId}.jpg`;
+  };
+
   if (loading) return <Spinner />;
 
   const usedPercent = usage
     ? Math.min((usage.usedBytes / usage.limitBytes) * 100, 100)
     : 0;
+  const storageFull = usedPercent >= 100;
+
+  const filteredFiles = files.filter((file) => {
+    const matchesSearch = file.fileName.toLowerCase().includes(search.toLowerCase());
+    const matchesType = typeFilter === "all" || file.resourceType === typeFilter;
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div className="space-y-6">
@@ -336,65 +386,152 @@ function MediaLibraryEditor() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           Upload Media
         </h2>
-        <CldUploadWidget
-          uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
-          options={{ maxFiles: 5, resourceType: "auto" }}
-          onSuccess={handleUploadSuccess}
-        >
-          {({ open }) => (
-            <button
-              type="button"
-              onClick={() => open()}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-amber-400 hover:text-amber-700"
+        {storageFull ? (
+          <div className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-red-300 bg-red-50 px-6 py-8 text-center">
+            <svg
+              className="h-6 w-6 text-red-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M12 16v-8m0 0l-3 3m3-3l3 3M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5"
-                />
-              </svg>
-              Click to upload images or videos
-            </button>
-          )}
-        </CldUploadWidget>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+              />
+            </svg>
+            <p className="text-sm font-medium text-red-600">
+              Storage is full
+            </p>
+            <p className="text-xs text-red-500">
+              Delete some files to free up space before uploading.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <CldUploadWidget
+              uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET}
+              options={{ maxFiles: 5, resourceType: "auto" }}
+              onSuccess={handleUploadSuccess}
+              onUploadAdded={() => {
+                setUploading(true);
+                setUploadProgress(30);
+              }}
+              onError={() => {
+                setUploading(false);
+                setUploadProgress(0);
+              }}
+            >
+              {({ open }) => (
+                <button
+                  type="button"
+                  onClick={() => open()}
+                  disabled={uploading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-amber-400 hover:text-amber-700 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 16v-8m0 0l-3 3m3-3l3 3M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5"
+                    />
+                  </svg>
+                  {uploading ? "Uploading..." : "Click to upload images or videos"}
+                </button>
+              )}
+            </CldUploadWidget>
+            {uploading && (
+              <div className="space-y-1">
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 text-right">
+                  {uploadProgress < 90 ? "Uploading to cloud..." : uploadProgress < 100 ? "Saving record..." : "Done!"}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Search & Filter */}
+      {files.length > 0 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <svg
+              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by file name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 shadow-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+          </div>
+          <div className="flex gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+            {(["all", "image", "video"] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => setTypeFilter(type)}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  typeFilter === type
+                    ? "bg-amber-100 text-amber-700"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {type === "all" ? "All" : type === "image" ? "Images" : "Videos"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
       {files.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-500">
           No media files yet. Upload some above.
         </div>
+      ) : filteredFiles.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-500">
+          No files match your search.
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {files.map((file) => (
+          {filteredFiles.map((file) => (
             <div
               key={file.id}
               className="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
             >
               <div className="relative aspect-video bg-gray-50">
                 {file.resourceType === "video" ? (
-                  <div className="flex h-full items-center justify-center">
-                    <svg
-                      className="h-10 w-10 text-gray-300"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"
-                      />
-                    </svg>
-                  </div>
+                  <Image
+                    src={getVideoThumbnail(file.publicId)}
+                    alt={file.fileName}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 25vw"
+                  />
                 ) : (
                   <Image
                     src={file.url}
@@ -404,22 +541,41 @@ function MediaLibraryEditor() {
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 33vw, 25vw"
                   />
                 )}
+                {file.resourceType === "video" && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="rounded-full bg-black/50 p-2">
+                      <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-3">
                 <p className="truncate text-sm font-medium text-gray-800">
                   {file.fileName}
                 </p>
                 <p className="text-xs text-gray-400">
-                  {formatBytes(file.fileSize)} &middot;{" "}
-                  {file.resourceType}
+                  {formatBytes(file.fileSize)} &middot; {file.resourceType}
+                  {file.width && file.height && (
+                    <> &middot; {file.width}&times;{file.height}</>
+                  )}
                 </p>
-                <button
-                  onClick={() => handleDelete(file.id)}
-                  disabled={deleting === file.id}
-                  className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
-                >
-                  {deleting === file.id ? "Deleting..." : "Delete"}
-                </button>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => handleCopyUrl(file)}
+                    className="rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                  >
+                    {copied === file.id ? "Copied!" : "Copy URL"}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(file.id)}
+                    disabled={deleting === file.id}
+                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
+                  >
+                    {deleting === file.id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -882,13 +1038,19 @@ function CarouselEditor() {
                   item.visible ? "border-gray-200" : "border-gray-200 opacity-60"
                 }`}
               >
-                <div className="relative aspect-video">
-                  <Image
-                    src={item.mediaFile?.url ?? item.imageUrl}
-                    alt={item.alt || "Carousel image"}
-                    fill
-                    className="object-cover"
-                  />
+                <div className="relative aspect-video bg-gray-100">
+                  {(item.mediaFile?.url || item.imageUrl?.startsWith("http")) ? (
+                    <Image
+                      src={item.mediaFile?.url ?? item.imageUrl}
+                      alt={item.alt || "Carousel image"}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                      No image
+                    </div>
+                  )}
                 </div>
                 <div className="p-3">
                   <p className="mb-2 truncate text-sm text-gray-600">
@@ -966,7 +1128,11 @@ function CarouselImageForm({
             imageUrl: selectedMedia?.url ?? item.imageUrl,
             alt,
           }
-        : { mediaFileId: selectedMedia!.id, alt };
+        : {
+            mediaFileId: selectedMedia!.id,
+            imageUrl: selectedMedia!.url,
+            alt,
+          };
 
       const res = await fetch("/api/admin/homepage/carousel", {
         method,
@@ -1176,13 +1342,19 @@ function GalleryEditor() {
                   item.visible ? "border-gray-200" : "border-gray-200 opacity-60"
                 }`}
               >
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg">
-                  <Image
-                    src={item.mediaFile?.url ?? item.imageUrl}
-                    alt={item.title}
-                    fill
-                    className="object-cover"
-                  />
+                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  {(item.mediaFile?.url || item.imageUrl?.startsWith("http")) ? (
+                    <Image
+                      src={item.mediaFile?.url ?? item.imageUrl}
+                      alt={item.title}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-gray-400">
+                      No image
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-gray-900">{item.title}</h3>
@@ -1265,7 +1437,13 @@ function GalleryItemForm({
             imageUrl: selectedMedia?.url ?? item.imageUrl,
             gradient,
           }
-        : { title, desc, mediaFileId: selectedMedia!.id, gradient };
+        : {
+            title,
+            desc,
+            mediaFileId: selectedMedia!.id,
+            imageUrl: selectedMedia!.url,
+            gradient,
+          };
 
       const res = await fetch("/api/admin/homepage/gallery", {
         method,

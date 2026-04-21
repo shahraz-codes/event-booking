@@ -11,6 +11,7 @@ interface BookingResult {
   date: string;
   eventType: string;
   status: string;
+  secretCode: string;
 }
 
 export default function BookingPage() {
@@ -20,11 +21,13 @@ export default function BookingPage() {
     name: "",
     phone: "",
     eventType: "",
+    numberOfAttendees: "",
     notes: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BookingResult | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -35,7 +38,11 @@ export default function BookingPage() {
       return;
     }
 
-    const payload = { ...formData, date: selectedDate };
+    const payload = {
+      ...formData,
+      date: selectedDate,
+      numberOfAttendees: parseInt(formData.numberOfAttendees, 10) || 0,
+    };
     const parsed = bookingSchema.safeParse(payload);
     if (!parsed.success) {
       setError(getZodErrorMessage(parsed.error));
@@ -61,6 +68,17 @@ export default function BookingPage() {
       setError("Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const copySecretCode = async () => {
+    if (!result?.secretCode) return;
+    try {
+      await navigator.clipboard.writeText(result.secretCode);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {
+      /* clipboard not available */
     }
   };
 
@@ -95,8 +113,44 @@ export default function BookingPage() {
               </div>
             </div>
           </div>
+
+          {/* Secret Code Display */}
+          <div className="mb-6 rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
+            <div className="mb-2 flex items-center justify-center gap-2">
+              <svg className="h-5 w-5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span className="text-sm font-semibold text-amber-900">
+                Your Secret Code
+              </span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <span className="rounded-lg bg-white px-4 py-2 font-mono text-2xl font-bold tracking-widest text-amber-800 shadow-sm">
+                {result.secretCode}
+              </span>
+              <button
+                onClick={copySecretCode}
+                className="rounded-lg bg-amber-600 p-2 text-white transition-colors hover:bg-amber-700"
+                title="Copy to clipboard"
+              >
+                {codeCopied ? (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            <p className="mt-3 text-xs font-medium text-amber-800">
+              Save this code! You&apos;ll need it to access your quotation, discussion, and bill.
+            </p>
+          </div>
+
           <p className="mb-4 text-xs text-gray-500">
-            Save your Booking ID to track your request status.
+            Save your Booking ID and Secret Code to track your request status.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
@@ -109,7 +163,13 @@ export default function BookingPage() {
               onClick={() => {
                 setResult(null);
                 setSelectedDate(null);
-                setFormData({ name: "", phone: "", eventType: "", notes: "" });
+                setFormData({
+                  name: "",
+                  phone: "",
+                  eventType: "",
+                  numberOfAttendees: "",
+                  notes: "",
+                });
               }}
               className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
@@ -206,6 +266,25 @@ export default function BookingPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label htmlFor="attendees" className="mb-1.5 block text-sm font-medium text-gray-700">
+                Number of Attendees
+              </label>
+              <input
+                id="attendees"
+                type="number"
+                required
+                min={1}
+                max={2000}
+                value={formData.numberOfAttendees}
+                onChange={(e) =>
+                  setFormData({ ...formData, numberOfAttendees: e.target.value })
+                }
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                placeholder="Expected number of guests"
+              />
             </div>
 
             <div>

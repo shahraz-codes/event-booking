@@ -4,13 +4,18 @@ import { useState, useEffect, useCallback, useRef, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Calendar, { useCalendarData } from "@/components/Calendar";
-import { EVENT_TYPES } from "@/types";
-import type { BookingComment } from "@/types";
+import { EVENT_TYPES, BOOKING_STATUS_LABELS } from "@/types";
+import type { BookingComment, QuotationData, QuotationItemData } from "@/types";
 import { format } from "date-fns";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
 
-type BookingStatus = "PENDING" | "APPROVED" | "REJECTED";
+type BookingStatus =
+  | "PENDING"
+  | "QUOTATION_SENT"
+  | "QUOTATION_FINALIZED"
+  | "APPROVED"
+  | "REJECTED";
 
 interface Booking {
   id: string;
@@ -19,12 +24,14 @@ interface Booking {
   phone: string;
   date: string;
   eventType: string;
+  numberOfAttendees: number;
   notes: string | null;
   status: BookingStatus;
   adminNote: string | null;
   totalAmount: number | null;
   advanceAmount: number | null;
   comments: BookingComment[];
+  quotation?: QuotationData | null;
   createdAt: string;
 }
 
@@ -37,9 +44,20 @@ interface BlockedDate {
 const TABS = [
   { key: "all", label: "All" },
   { key: "PENDING", label: "Pending" },
+  { key: "QUOTATION_SENT", label: "Quotation Sent" },
+  { key: "QUOTATION_FINALIZED", label: "Finalized" },
   { key: "APPROVED", label: "Approved" },
   { key: "REJECTED", label: "Rejected" },
 ] as const;
+
+const EMPTY_ITEM: QuotationItemData = {
+  particular: "",
+  quantity: null,
+  unit: null,
+  rate: null,
+  amount: 0,
+  order: 0,
+};
 
 export default function AdminPage() {
   return (
@@ -81,6 +99,17 @@ function AdminPageContent() {
     advanceAmount: "",
     adminNote: "",
   });
+
+  const [expandedQuotation, setExpandedQuotation] = useState<Set<string>>(new Set());
+
+  // Quotation builder state
+  const [quotationTarget, setQuotationTarget] = useState<string | null>(null);
+  const [quotationItems, setQuotationItems] = useState<QuotationItemData[]>([
+    { ...EMPTY_ITEM },
+  ]);
+  const [quotationAdvance, setQuotationAdvance] = useState("");
+  const [quotationNotes, setQuotationNotes] = useState("");
+  const [quotationLoading, setQuotationLoading] = useState(false);
 
   const { disabledDates, refetch: refetchCalendar } = useCalendarData();
 
@@ -124,6 +153,8 @@ function AdminPageContent() {
     fetchBlocked();
   }, [fetchBlocked]);
 
+  // ─── Booking Actions ────────────────────────────────────
+
   const handleAction = async (
     id: string,
     action: "approve" | "reject" | "cancel",
@@ -147,7 +178,10 @@ function AdminPageContent() {
       });
       const json = await res.json();
       if (json.success) {
-        toast("success", `Booking ${action === "cancel" ? "cancelled" : `${action}d`} successfully`);
+        toast(
+          "success",
+          `Booking ${action === "cancel" ? "cancelled" : `${action}d`} successfully`
+        );
         setApprovalTarget(null);
         setApprovalForm({ totalAmount: "", advanceAmount: "", adminNote: "" });
         fetchBookings();
@@ -185,6 +219,149 @@ function AdminPageContent() {
     });
   };
 
+  // ─── Quotation Actions ──────────────────────────────────
+
+  const openQuotationBuilder = (booking: Booking) => {
+    if (booking.quotation) {
+      setQuotationItems(
+        booking.quotation.items.map((it) => ({
+          id: it.id,
+          particular: it.particular,
+          quantity: it.quantity,
+          unit: it.unit,
+          rate: it.rate,
+          amount: it.amount,
+          order: it.order,
+        }))
+      );
+      setQuotationAdvance(String(booking.quotation.advanceAmount || ""));
+      setQuotationNotes(booking.quotation.notes || "");
+    } else {
+      setQuotationItems([{ ...EMPTY_ITEM }]);
+      setQuotationAdvance("");
+      setQuotationNotes("");
+    }
+    setQuotationTarget(booking.id);
+  };
+
+  const closeQuotationBuilder = () => {
+    setQuotationTarget(null);
+    setQuotationItems([{ ...EMPTY_ITEM }]);
+    setQuotationAdvance("");
+    setQuotationNotes("");
+  };
+
+  const addQuotationRow = () => {
+    setQuotationItems((prev) => [
+      ...prev,
+      { ...EMPTY_ITEM, order: prev.length },
+    ]);
+  };
+
+  const removeQuotationRow = (idx: number) => {
+    setQuotationItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateQuotationRow = (
+    idx: number,
+    field: keyof QuotationItemData,
+    value: string | number | null
+  ) => {
+    setQuotationItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const quotationTotal = quotationItems.reduce(
+    (sum, it) => sum + (it.amount || 0),
+    0
+  );
+
+  const handleSaveQuotation = async (bookingId: string, booking: Booking) => {
+    const validItems = quotationItems.filter(
+      (it) => it.particular.trim()
+    );
+    if (validItems.length === 0) {
+      toast("error", "Add at least one item with a particular");
+      return;
+    }
+
+    setQuotationLoading(true);
+    try {
+      const isUpdate = !!booking.quotation;
+      const url = "/api/admin/quotations";
+
+      const body = isUpdate
+        ? {
+            quotationId: booking.quotation!.id,
+            items: validItems.map((it, idx) => ({
+              ...it,
+              order: idx,
+            })),
+            advanceAmount: parseFloat(quotationAdvance) || 0,
+            notes: quotationNotes || null,
+          }
+        : {
+            bookingId,
+            items: validItems.map((it, idx) => ({
+              ...it,
+              order: idx,
+            })),
+            advanceAmount: parseFloat(quotationAdvance) || 0,
+            notes: quotationNotes || null,
+          };
+
+      const res = await fetch(url, {
+        method: isUpdate ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        toast("success", `Quotation ${isUpdate ? "updated" : "created"}`);
+        closeQuotationBuilder();
+        fetchBookings();
+      } else {
+        toast("error", json.error || "Failed to save quotation");
+      }
+    } catch {
+      toast("error", "Failed to save quotation");
+    } finally {
+      setQuotationLoading(false);
+    }
+  };
+
+  const handleQuotationAction = async (
+    quotationId: string,
+    action: "send" | "finalize"
+  ) => {
+    setQuotationLoading(true);
+    try {
+      const res = await fetch("/api/admin/quotations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quotationId, action }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast(
+          "success",
+          action === "send" ? "Quotation sent to customer" : "Quotation finalized"
+        );
+        fetchBookings();
+      } else {
+        toast("error", json.error || `Failed to ${action} quotation`);
+      }
+    } catch {
+      toast("error", `Failed to ${action} quotation`);
+    } finally {
+      setQuotationLoading(false);
+    }
+  };
+
+  // ─── Comments ───────────────────────────────────────────
+
   const handleSendComment = async (bookingId: string) => {
     const msg = commentInput[bookingId]?.trim();
     if (!msg) return;
@@ -209,6 +386,8 @@ function AdminPageContent() {
       setCommentLoading(null);
     }
   };
+
+  // ─── Block Date ─────────────────────────────────────────
 
   const handleBlockDate = async (e: FormEvent) => {
     e.preventDefault();
@@ -257,21 +436,35 @@ function AdminPageContent() {
     }
   };
 
+  // ─── Helpers ────────────────────────────────────────────
+
   const eventLabel = (val: string) =>
     EVENT_TYPES.find((t) => t.value === val)?.label || val;
 
   const statusBadge = (status: BookingStatus) => {
-    const map = {
+    const map: Record<BookingStatus, string> = {
       PENDING: "bg-yellow-100 text-yellow-800",
+      QUOTATION_SENT: "bg-blue-100 text-blue-800",
+      QUOTATION_FINALIZED: "bg-indigo-100 text-indigo-800",
       APPROVED: "bg-green-100 text-green-800",
       REJECTED: "bg-red-100 text-red-800",
     };
     return (
-      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${map[status]}`}>
-        {status}
+      <span
+        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${map[status]}`}
+      >
+        {BOOKING_STATUS_LABELS[status]}
       </span>
     );
   };
+
+  const canCreateOrEditQuotation = (b: Booking) =>
+    b.status !== "APPROVED" && b.status !== "REJECTED";
+
+  const canApprove = (b: Booking) =>
+    b.status === "PENDING" ||
+    b.status === "QUOTATION_SENT" ||
+    b.status === "QUOTATION_FINALIZED";
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
@@ -279,7 +472,7 @@ function AdminPageContent() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="mt-1 text-gray-600">
-            Manage bookings, approve requests, and block dates
+            Manage bookings, quotations, and block dates
           </p>
         </div>
         <div className="flex gap-3">
@@ -302,12 +495,12 @@ function AdminPageContent() {
         {/* Bookings List */}
         <div className="xl:col-span-2">
           {/* Tabs */}
-          <div className="mb-4 flex gap-1 rounded-xl bg-gray-100 p-1">
+          <div className="mb-4 flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors sm:text-sm ${
                   activeTab === tab.key
                     ? "bg-white text-amber-900 shadow-sm"
                     : "text-gray-600 hover:text-gray-900"
@@ -343,10 +536,25 @@ function AdminPageContent() {
                         {b.name}
                       </h3>
                     </div>
-                    {statusBadge(b.status)}
+                    <div className="flex items-center gap-2">
+                      {b.quotation && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            b.quotation.status === "FINALIZED"
+                              ? "bg-green-100 text-green-700"
+                              : b.quotation.status === "SENT"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          Q: {b.quotation.status}
+                        </span>
+                      )}
+                      {statusBadge(b.status)}
+                    </div>
                   </div>
 
-                  <div className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                  <div className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
                     <div>
                       <p className="text-gray-500">Phone</p>
                       <p className="font-medium text-gray-900">{b.phone}</p>
@@ -361,6 +569,12 @@ function AdminPageContent() {
                       <p className="text-gray-500">Date</p>
                       <p className="font-medium text-gray-900">
                         {format(new Date(b.date), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Attendees</p>
+                      <p className="font-medium text-gray-900">
+                        {b.numberOfAttendees || "—"}
                       </p>
                     </div>
                     <div>
@@ -379,11 +593,257 @@ function AdminPageContent() {
 
                   {b.adminNote && (
                     <p className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                      <span className="font-medium">Admin:</span>{" "}
-                      {b.adminNote}
+                      <span className="font-medium">Admin:</span> {b.adminNote}
                     </p>
                   )}
 
+                  {/* Existing Quotation Summary */}
+                  {b.quotation && quotationTarget !== b.id && (
+                    <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <h4 className="text-xs font-semibold text-blue-900">
+                          Quotation ({b.quotation.items.length} items)
+                        </h4>
+                        <span className="font-semibold text-blue-900 text-sm">
+                          &#8377;
+                          {b.quotation.totalAmount.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {(expandedQuotation.has(b.id)
+                          ? b.quotation.items
+                          : b.quotation.items.slice(0, 3)
+                        ).map((it, i) => (
+                          <div
+                            key={it.id || i}
+                            className="flex justify-between text-xs text-blue-800"
+                          >
+                            <span>
+                              {it.particular}
+                              {it.quantity != null && (
+                                <span className="ml-1 text-blue-600">
+                                  &times;{it.quantity}
+                                  {it.unit ? ` ${it.unit}` : ""}
+                                </span>
+                              )}
+                            </span>
+                            {it.amount ? (
+                              <span>
+                                &#8377;{it.amount.toLocaleString("en-IN")}
+                              </span>
+                            ) : null}
+                          </div>
+                        ))}
+                        {b.quotation.items.length > 3 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedQuotation((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(b.id)) next.delete(b.id);
+                                else next.add(b.id);
+                                return next;
+                              })
+                            }
+                            className="mt-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            {expandedQuotation.has(b.id)
+                              ? "Show less"
+                              : `+${b.quotation.items.length - 3} more items`}
+                          </button>
+                        )}
+                      </div>
+                      {canCreateOrEditQuotation(b) && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {b.quotation.status !== "FINALIZED" && (
+                            <button
+                              onClick={() => openQuotationBuilder(b)}
+                              className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {b.quotation.status === "DRAFT" && (
+                            <button
+                              onClick={() =>
+                                handleQuotationAction(b.quotation!.id, "send")
+                              }
+                              disabled={quotationLoading}
+                              className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                              Send to Customer
+                            </button>
+                          )}
+                          {b.quotation.status === "SENT" && (
+                            <button
+                              onClick={() =>
+                                handleQuotationAction(
+                                  b.quotation!.id,
+                                  "finalize"
+                                )
+                              }
+                              disabled={quotationLoading}
+                              className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                            >
+                              Finalize
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Quotation Builder */}
+                  {quotationTarget === b.id && (
+                    <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                      <h4 className="mb-3 text-sm font-semibold text-blue-900">
+                        {b.quotation ? "Edit Quotation" : "Create Quotation"}
+                      </h4>
+                      <div className="space-y-2">
+                        {quotationItems.map((item, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Particular (e.g. 2 A/C Halls)"
+                              value={item.particular}
+                              onChange={(e) =>
+                                updateQuotationRow(
+                                  idx,
+                                  "particular",
+                                  e.target.value
+                                )
+                              }
+                              className="flex-1 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Qty"
+                              value={item.quantity ?? ""}
+                              onChange={(e) =>
+                                updateQuotationRow(
+                                  idx,
+                                  "quantity",
+                                  e.target.value
+                                    ? parseInt(e.target.value)
+                                    : null
+                                )
+                              }
+                              className="w-16 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Unit"
+                              value={item.unit ?? ""}
+                              onChange={(e) =>
+                                updateQuotationRow(
+                                  idx,
+                                  "unit",
+                                  e.target.value || null
+                                )
+                              }
+                              className="w-20 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Amount"
+                              value={item.amount || ""}
+                              onChange={(e) =>
+                                updateQuotationRow(
+                                  idx,
+                                  "amount",
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
+                              className="w-28 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
+                            />
+                            <button
+                              onClick={() => removeQuotationRow(idx)}
+                              disabled={quotationItems.length === 1}
+                              className="rounded-md p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-30"
+                            >
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={addQuotationRow}
+                        className="mt-2 flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-900"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                        Add Item
+                      </button>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-blue-200 pt-3">
+                        <span className="text-sm font-semibold text-blue-900">
+                          Total: &#8377;{quotationTotal.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          placeholder="Advance Amount"
+                          value={quotationAdvance}
+                          onChange={(e) => setQuotationAdvance(e.target.value)}
+                          className="rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Notes (optional)"
+                          value={quotationNotes}
+                          onChange={(e) => setQuotationNotes(e.target.value)}
+                          className="rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
+                        />
+                      </div>
+
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => handleSaveQuotation(b.id, b)}
+                          disabled={quotationLoading}
+                          className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {quotationLoading
+                            ? "..."
+                            : b.quotation
+                              ? "Update Quotation"
+                              : "Create Quotation"}
+                        </button>
+                        <button
+                          onClick={closeQuotationBuilder}
+                          className="rounded-md border border-gray-300 px-4 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Financial Summary for Approved */}
                   {b.status === "APPROVED" && b.totalAmount != null && (
                     <div className="mb-4 grid grid-cols-3 gap-3 rounded-lg bg-green-50 px-3 py-2 text-sm">
                       <div>
@@ -395,13 +855,17 @@ function AdminPageContent() {
                       <div>
                         <p className="text-green-600">Advance Received</p>
                         <p className="font-semibold text-green-900">
-                          &#8377;{(b.advanceAmount ?? 0).toLocaleString("en-IN")}
+                          &#8377;
+                          {(b.advanceAmount ?? 0).toLocaleString("en-IN")}
                         </p>
                       </div>
                       <div>
                         <p className="text-green-600">Balance Due</p>
                         <p className="font-semibold text-green-900">
-                          &#8377;{(b.totalAmount - (b.advanceAmount ?? 0)).toLocaleString("en-IN")}
+                          &#8377;
+                          {(
+                            b.totalAmount - (b.advanceAmount ?? 0)
+                          ).toLocaleString("en-IN")}
                         </p>
                       </div>
                     </div>
@@ -417,8 +881,18 @@ function AdminPageContent() {
                       }
                       className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-amber-800 transition-colors"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                        />
                       </svg>
                       Discussion
                       {b.comments.length > 0 && (
@@ -428,9 +902,16 @@ function AdminPageContent() {
                       )}
                       <svg
                         className={`h-4 w-4 transition-transform ${expandedDiscussion === b.id ? "rotate-180" : ""}`}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
                       </svg>
                     </button>
 
@@ -459,13 +940,20 @@ function AdminPageContent() {
                                   </p>
                                   <p>{c.message}</p>
                                   <p className="mt-1 text-[10px] opacity-60">
-                                    {format(new Date(c.createdAt), "MMM d, h:mm a")}
+                                    {format(
+                                      new Date(c.createdAt),
+                                      "MMM d, h:mm a"
+                                    )}
                                   </p>
                                 </div>
                               </div>
                             ))
                           )}
-                          <div ref={(el) => { discussionEndRef.current[b.id] = el; }} />
+                          <div
+                            ref={(el) => {
+                              discussionEndRef.current[b.id] = el;
+                            }}
+                          />
                         </div>
                         <div className="flex gap-2">
                           <input
@@ -488,7 +976,10 @@ function AdminPageContent() {
                           />
                           <button
                             onClick={() => handleSendComment(b.id)}
-                            disabled={commentLoading === b.id || !commentInput[b.id]?.trim()}
+                            disabled={
+                              commentLoading === b.id ||
+                              !commentInput[b.id]?.trim()
+                            }
                             className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
                           >
                             {commentLoading === b.id ? "..." : "Send"}
@@ -498,8 +989,8 @@ function AdminPageContent() {
                     )}
                   </div>
 
-                  {/* Pending Actions */}
-                  {b.status === "PENDING" && (
+                  {/* Actions */}
+                  {canApprove(b) && (
                     <div className="border-t border-gray-100 pt-4">
                       {approvalTarget === b.id ? (
                         <div className="space-y-3 rounded-lg border border-green-200 bg-green-50 p-4">
@@ -564,7 +1055,9 @@ function AdminPageContent() {
                               disabled={actionLoading === b.id}
                               className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
                             >
-                              {actionLoading === b.id ? "..." : "Confirm Approval"}
+                              {actionLoading === b.id
+                                ? "..."
+                                : "Confirm Approval"}
                             </button>
                             <button
                               onClick={() => {
@@ -582,33 +1075,59 @@ function AdminPageContent() {
                           </div>
                         </div>
                       ) : (
-                        <>
-                          <input
-                            type="text"
-                            placeholder="Admin note for rejection (optional)"
-                            value={noteInput[b.id] || ""}
-                            onChange={(e) =>
-                              setNoteInput({ ...noteInput, [b.id]: e.target.value })
-                            }
-                            className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setApprovalTarget(b.id)}
-                              disabled={actionLoading === b.id}
-                              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleAction(b.id, "reject")}
-                              disabled={actionLoading === b.id}
-                              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
-                            >
-                              {actionLoading === b.id ? "..." : "Reject"}
-                            </button>
-                          </div>
-                        </>
+                        <div className="flex flex-wrap gap-2">
+                          {!b.quotation &&
+                            b.status === "PENDING" &&
+                            quotationTarget !== b.id && (
+                              <button
+                                onClick={() => openQuotationBuilder(b)}
+                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                              >
+                                Create Quotation
+                              </button>
+                            )}
+                          <button
+                            onClick={() => {
+                              if (b.quotation) {
+                                setApprovalForm({
+                                  totalAmount: String(
+                                    b.quotation.totalAmount
+                                  ),
+                                  advanceAmount: String(
+                                    b.quotation.advanceAmount
+                                  ),
+                                  adminNote: "",
+                                });
+                              }
+                              setApprovalTarget(b.id);
+                            }}
+                            disabled={actionLoading === b.id}
+                            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleAction(b.id, "reject")}
+                            disabled={actionLoading === b.id}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {actionLoading === b.id ? "..." : "Reject"}
+                          </button>
+                          {noteInput[b.id] === undefined && (
+                            <input
+                              type="text"
+                              placeholder="Admin note for rejection (optional)"
+                              value={noteInput[b.id] || ""}
+                              onChange={(e) =>
+                                setNoteInput({
+                                  ...noteInput,
+                                  [b.id]: e.target.value,
+                                })
+                              }
+                              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                            />
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -705,7 +1224,10 @@ function AdminPageContent() {
                         )}
                       </div>
                       {isBookingLinked ? (
-                        <span className="text-xs text-gray-400" title="Cancel the booking to unblock this date">
+                        <span
+                          className="text-xs text-gray-400"
+                          title="Cancel the booking to unblock this date"
+                        >
                           Auto-blocked
                         </span>
                       ) : (

@@ -65,14 +65,14 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
           A Glimpse of AR Banquets
         </h2>
       </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-wrap justify-center gap-6">
         {gallery.map((img, index) => (
           <div
             key={img.id}
             onClick={() => open(index)}
-            className={`group relative flex h-64 cursor-pointer flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
+            className={`group relative flex h-64 w-full cursor-pointer flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)] ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
           >
-            <GalleryImage src={img.imageUrl} alt={img.title} />
+            {img.imageUrl && <GalleryImage src={img.imageUrl} alt={img.title} />}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
             <div className="relative">
               <h3 className="text-lg font-semibold text-white">{img.title}</h3>
@@ -134,14 +134,20 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
             }`}
           >
             <div className="relative h-[75vh] w-full">
-              <Image
-                src={selected.imageUrl}
-                alt={selected.title}
-                fill
-                className="rounded-lg object-contain"
-                sizes="(max-width: 1280px) 100vw, 1280px"
-                priority
-              />
+              {selected.imageUrl ? (
+                <Image
+                  src={selected.imageUrl}
+                  alt={selected.title}
+                  fill
+                  className="rounded-lg object-contain"
+                  sizes="(max-width: 1280px) 100vw, 1280px"
+                  priority
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-white/50">
+                  No image available
+                </div>
+              )}
             </div>
             <div className="mt-4 text-center">
               <h3 className="text-lg font-semibold text-white">{selected.title}</h3>

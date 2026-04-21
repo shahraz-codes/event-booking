@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
 
     const validStatuses: BookingStatus[] = [
       "PENDING",
+      "QUOTATION_SENT",
+      "QUOTATION_FINALIZED",
       "APPROVED",
       "REJECTED",
     ];

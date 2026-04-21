@@ -1,6 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { BookingStatus, CommentSender } from "@/generated/prisma/client";
+import {
+  BookingStatus,
+  CommentSender,
+  QuotationStatus,
+} from "@/generated/prisma/client";
 import { format } from "date-fns";
+import crypto from "crypto";
+import type { QuotationItemData } from "@/types";
+
+function generateSecretCode(): string {
+  return crypto.randomBytes(3).toString("hex").toUpperCase();
+}
 
 export async function generateBookingId(): Promise<string> {
   const year = new Date().getFullYear();
@@ -26,10 +36,12 @@ export async function createBooking(data: {
   phone: string;
   date: string;
   eventType: string;
+  numberOfAttendees: number;
   notes?: string;
 }) {
   const bookingId = await generateBookingId();
   const bookingDate = new Date(data.date);
+  const secretCode = generateSecretCode();
 
   return prisma.booking.create({
     data: {
@@ -38,46 +50,97 @@ export async function createBooking(data: {
       phone: data.phone,
       date: bookingDate,
       eventType: data.eventType,
+      numberOfAttendees: data.numberOfAttendees,
       notes: data.notes || null,
       status: "PENDING",
+      secretCode,
     },
     select: {
       bookingId: true,
       name: true,
       date: true,
       eventType: true,
+      numberOfAttendees: true,
       status: true,
+      secretCode: true,
       createdAt: true,
     },
   });
 }
 
-export async function getBookingByBookingId(bookingId: string) {
-  return prisma.booking.findUnique({
-    where: { bookingId },
+const BOOKING_BASIC_SELECT = {
+  bookingId: true,
+  name: true,
+  date: true,
+  eventType: true,
+  numberOfAttendees: true,
+  status: true,
+  adminNote: true,
+  createdAt: true,
+} as const;
+
+const BOOKING_SENSITIVE_SELECT = {
+  ...BOOKING_BASIC_SELECT,
+  phone: true,
+  notes: true,
+  totalAmount: true,
+  advanceAmount: true,
+  comments: {
+    orderBy: { createdAt: "asc" as const },
     select: {
-      bookingId: true,
-      name: true,
-      phone: true,
-      date: true,
-      eventType: true,
-      notes: true,
+      id: true,
+      message: true,
+      sender: true,
+      createdAt: true,
+    },
+  },
+  quotation: {
+    select: {
+      id: true,
       status: true,
-      adminNote: true,
       totalAmount: true,
       advanceAmount: true,
+      notes: true,
       createdAt: true,
-      comments: {
-        orderBy: { createdAt: "asc" },
+      updatedAt: true,
+      finalizedAt: true,
+      items: {
+        orderBy: { order: "asc" as const },
         select: {
           id: true,
-          message: true,
-          sender: true,
-          createdAt: true,
+          particular: true,
+          quantity: true,
+          unit: true,
+          rate: true,
+          amount: true,
+          order: true,
         },
       },
     },
+  },
+} as const;
+
+export async function getBookingByBookingId(bookingId: string) {
+  return prisma.booking.findUnique({
+    where: { bookingId },
+    select: BOOKING_BASIC_SELECT,
   });
+}
+
+export async function getBookingByBookingIdWithSecret(
+  bookingId: string,
+  secretCode: string
+) {
+  const booking = await prisma.booking.findUnique({
+    where: { bookingId },
+    select: { ...BOOKING_SENSITIVE_SELECT, secretCode: true },
+  });
+
+  if (!booking) return null;
+  if (booking.secretCode !== secretCode) return null;
+
+  const { secretCode: _, ...rest } = booking;
+  return rest;
 }
 
 export async function getAllBookings(status?: BookingStatus) {
@@ -86,26 +149,7 @@ export async function getAllBookings(status?: BookingStatus) {
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
-      bookingId: true,
-      name: true,
-      phone: true,
-      date: true,
-      eventType: true,
-      notes: true,
-      status: true,
-      adminNote: true,
-      totalAmount: true,
-      advanceAmount: true,
-      createdAt: true,
-      comments: {
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          message: true,
-          sender: true,
-          createdAt: true,
-        },
-      },
+      ...BOOKING_SENSITIVE_SELECT,
     },
   });
 }
@@ -119,15 +163,25 @@ export async function approveBooking(
   return prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
       where: { id },
-      select: { id: true, date: true, status: true },
+      select: {
+        id: true,
+        date: true,
+        status: true,
+        quotation: { select: { status: true, totalAmount: true, advanceAmount: true } },
+      },
     });
 
     if (!booking) {
       throw new Error("Booking not found");
     }
 
-    if (booking.status !== "PENDING") {
-      throw new Error("Only pending bookings can be approved");
+    const allowedStatuses: BookingStatus[] = [
+      "PENDING",
+      "QUOTATION_SENT",
+      "QUOTATION_FINALIZED",
+    ];
+    if (!allowedStatuses.includes(booking.status)) {
+      throw new Error("Booking cannot be approved from its current status");
     }
 
     const existingApproved = await tx.booking.findFirst({
@@ -163,6 +217,13 @@ export async function approveBooking(
         advanceAmount,
       },
     });
+
+    if (booking.quotation && booking.quotation.status !== "FINALIZED") {
+      await tx.quotation.update({
+        where: { bookingId: id },
+        data: { status: "FINALIZED", finalizedAt: new Date() },
+      });
+    }
 
     await tx.blockedDate.upsert({
       where: { date: booking.date },
@@ -212,8 +273,11 @@ export async function rejectBooking(id: string, adminNote?: string) {
   });
 
   if (!booking) throw new Error("Booking not found");
-  if (booking.status !== "PENDING") {
-    throw new Error("Only pending bookings can be rejected");
+  if (booking.status === "APPROVED") {
+    throw new Error("Cannot reject an approved booking — cancel it instead");
+  }
+  if (booking.status === "REJECTED") {
+    throw new Error("Booking is already rejected");
   }
 
   return prisma.booking.update({
@@ -224,6 +288,164 @@ export async function rejectBooking(id: string, adminNote?: string) {
     },
   });
 }
+
+// ─── Quotation CRUD ──────────────────────────────────────────
+
+export async function createQuotation(
+  bookingId: string,
+  items: QuotationItemData[],
+  advanceAmount: number = 0,
+  notes?: string
+) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, quotation: { select: { id: true } } },
+  });
+
+  if (!booking) throw new Error("Booking not found");
+  if (booking.quotation) throw new Error("Quotation already exists for this booking");
+
+  const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+  return prisma.quotation.create({
+    data: {
+      bookingId,
+      totalAmount,
+      advanceAmount,
+      notes: notes || null,
+      items: {
+        create: items.map((item, idx) => ({
+          particular: item.particular,
+          quantity: item.quantity ?? null,
+          unit: item.unit ?? null,
+          rate: item.rate ?? null,
+          amount: item.amount || 0,
+          order: item.order ?? idx,
+        })),
+      },
+    },
+    include: {
+      items: { orderBy: { order: "asc" } },
+    },
+  });
+}
+
+export async function updateQuotation(
+  quotationId: string,
+  items: QuotationItemData[],
+  advanceAmount?: number,
+  notes?: string
+) {
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    select: { id: true, status: true },
+  });
+
+  if (!quotation) throw new Error("Quotation not found");
+  if (quotation.status === "FINALIZED") {
+    throw new Error("Cannot edit a finalized quotation");
+  }
+
+  const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.quotationItem.deleteMany({ where: { quotationId } });
+
+    return tx.quotation.update({
+      where: { id: quotationId },
+      data: {
+        totalAmount,
+        advanceAmount: advanceAmount ?? undefined,
+        notes: notes !== undefined ? notes || null : undefined,
+        items: {
+          create: items.map((item, idx) => ({
+            particular: item.particular,
+            quantity: item.quantity ?? null,
+            unit: item.unit ?? null,
+            rate: item.rate ?? null,
+            amount: item.amount || 0,
+            order: item.order ?? idx,
+          })),
+        },
+      },
+      include: {
+        items: { orderBy: { order: "asc" } },
+      },
+    });
+  });
+}
+
+export async function sendQuotation(quotationId: string) {
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    select: { id: true, status: true, bookingId: true },
+  });
+
+  if (!quotation) throw new Error("Quotation not found");
+  if (quotation.status === "FINALIZED") {
+    throw new Error("Quotation is already finalized");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.quotation.update({
+      where: { id: quotationId },
+      data: { status: "SENT" },
+      include: { items: { orderBy: { order: "asc" } } },
+    });
+
+    await tx.booking.update({
+      where: { id: quotation.bookingId },
+      data: { status: "QUOTATION_SENT" },
+    });
+
+    return updated;
+  });
+}
+
+export async function finalizeQuotation(quotationId: string) {
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    select: { id: true, status: true, bookingId: true },
+  });
+
+  if (!quotation) throw new Error("Quotation not found");
+  if (quotation.status === "FINALIZED") {
+    throw new Error("Quotation is already finalized");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.quotation.update({
+      where: { id: quotationId },
+      data: {
+        status: "FINALIZED",
+        finalizedAt: new Date(),
+      },
+      include: { items: { orderBy: { order: "asc" } } },
+    });
+
+    await tx.booking.update({
+      where: { id: quotation.bookingId },
+      data: {
+        status: "QUOTATION_FINALIZED",
+        totalAmount: updated.totalAmount,
+        advanceAmount: updated.advanceAmount,
+      },
+    });
+
+    return updated;
+  });
+}
+
+export async function getQuotationByBookingInternalId(bookingId: string) {
+  return prisma.quotation.findUnique({
+    where: { bookingId },
+    include: {
+      items: { orderBy: { order: "asc" } },
+    },
+  });
+}
+
+// ─── Comments ────────────────────────────────────────────────
 
 export async function addComment(
   bookingId: string,
@@ -254,17 +476,18 @@ export async function addComment(
 
 export async function addCommentByBookingId(
   bookingId: string,
-  phone: string,
+  secretCode: string,
   message: string,
   sender: CommentSender
 ) {
   const booking = await prisma.booking.findUnique({
     where: { bookingId },
-    select: { id: true, phone: true },
+    select: { id: true, secretCode: true },
   });
 
   if (!booking) throw new Error("Booking not found");
-  if (booking.phone !== phone) throw new Error("Phone number does not match");
+  if (booking.secretCode !== secretCode)
+    throw new Error("Invalid secret code");
 
   return prisma.comment.create({
     data: {
@@ -294,14 +517,18 @@ export async function getComments(bookingId: string) {
   });
 }
 
-export async function getCommentsByBookingId(bookingId: string, phone: string) {
+export async function getCommentsByBookingId(
+  bookingId: string,
+  secretCode: string
+) {
   const booking = await prisma.booking.findUnique({
     where: { bookingId },
-    select: { id: true, phone: true },
+    select: { id: true, secretCode: true },
   });
 
   if (!booking) throw new Error("Booking not found");
-  if (booking.phone !== phone) throw new Error("Phone number does not match");
+  if (booking.secretCode !== secretCode)
+    throw new Error("Invalid secret code");
 
   return prisma.comment.findMany({
     where: { bookingId: booking.id },

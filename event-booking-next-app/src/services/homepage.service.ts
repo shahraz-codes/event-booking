@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { deleteFromCloudinary } from "@/lib/cloudinary";
 
 const STORAGE_LIMIT_BYTES = 25 * 1024 * 1024 * 1024; // 25 GB
 
@@ -54,6 +55,16 @@ export async function deleteMediaFile(id: string) {
     );
   }
 
+  const file = await prisma.mediaFile.findUniqueOrThrow({
+    where: { id },
+    select: { publicId: true, resourceType: true },
+  });
+
+  await deleteFromCloudinary(
+    file.publicId,
+    file.resourceType as "image" | "video" | "raw"
+  );
+
   return prisma.mediaFile.delete({ where: { id } });
 }
 
@@ -99,19 +110,29 @@ export async function upsertHero(data: {
 
 // ── Gallery ─────────────────────────────────────────────────────────
 
+function resolveMediaUrl<T extends { imageUrl: string; mediaFile: { url: string } | null }>(
+  item: T
+): T & { imageUrl: string } {
+  const url = item.mediaFile?.url
+    || (item.imageUrl.startsWith("http") ? item.imageUrl : "");
+  return { ...item, imageUrl: url };
+}
+
 export async function getVisibleGalleryItems() {
-  return prisma.galleryItem.findMany({
+  const items = await prisma.galleryItem.findMany({
     where: { visible: true },
     orderBy: { order: "asc" },
     include: { mediaFile: true },
   });
+  return items.map(resolveMediaUrl);
 }
 
 export async function getAllGalleryItems() {
-  return prisma.galleryItem.findMany({
+  const items = await prisma.galleryItem.findMany({
     orderBy: { order: "asc" },
     include: { mediaFile: true },
   });
+  return items.map(resolveMediaUrl);
 }
 
 export async function createGalleryItem(data: {
@@ -122,13 +143,22 @@ export async function createGalleryItem(data: {
   gradient?: string;
   order?: number;
 }) {
+  let imageUrl = data.imageUrl ?? "";
+  if (!imageUrl && data.mediaFileId) {
+    const media = await prisma.mediaFile.findUnique({
+      where: { id: data.mediaFileId },
+      select: { url: true },
+    });
+    imageUrl = media?.url ?? "";
+  }
+
   const maxOrder = await prisma.galleryItem.aggregate({ _max: { order: true } });
   const order = data.order ?? (maxOrder._max.order ?? 0) + 1;
   return prisma.galleryItem.create({
     data: {
       title: data.title,
       desc: data.desc,
-      imageUrl: data.imageUrl ?? "",
+      imageUrl,
       gradient: data.gradient,
       order,
       ...(data.mediaFileId
@@ -213,18 +243,20 @@ export async function deleteServiceItem(id: string) {
 // ── Hero Carousel ────────────────────────────────────────────────────
 
 export async function getVisibleCarouselImages() {
-  return prisma.heroCarouselImage.findMany({
+  const items = await prisma.heroCarouselImage.findMany({
     where: { visible: true },
     orderBy: { order: "asc" },
     include: { mediaFile: true },
   });
+  return items.map(resolveMediaUrl);
 }
 
 export async function getAllCarouselImages() {
-  return prisma.heroCarouselImage.findMany({
+  const items = await prisma.heroCarouselImage.findMany({
     orderBy: { order: "asc" },
     include: { mediaFile: true },
   });
+  return items.map(resolveMediaUrl);
 }
 
 export async function createCarouselImage(data: {
@@ -233,11 +265,20 @@ export async function createCarouselImage(data: {
   alt?: string;
   order?: number;
 }) {
+  let imageUrl = data.imageUrl ?? "";
+  if (!imageUrl && data.mediaFileId) {
+    const media = await prisma.mediaFile.findUnique({
+      where: { id: data.mediaFileId },
+      select: { url: true },
+    });
+    imageUrl = media?.url ?? "";
+  }
+
   const maxOrder = await prisma.heroCarouselImage.aggregate({ _max: { order: true } });
   const order = data.order ?? (maxOrder._max.order ?? 0) + 1;
   return prisma.heroCarouselImage.create({
     data: {
-      imageUrl: data.imageUrl ?? "",
+      imageUrl,
       alt: data.alt,
       order,
       ...(data.mediaFileId
