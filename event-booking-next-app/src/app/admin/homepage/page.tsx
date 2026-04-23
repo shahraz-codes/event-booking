@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
+import { APP_NAME } from "@/lib/config";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -131,28 +132,28 @@ function AdminHomepageContent() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
             Homepage Manager
           </h1>
-          <p className="mt-1 text-gray-600">
+          <p className="mt-1 text-sm text-gray-600 sm:text-base">
             Manage hero section, gallery, and services displayed on the home
             page
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <Link
             href="/admin"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:px-4"
           >
             Bookings
           </Link>
           <button
             onClick={handleLogout}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:px-4"
           >
             Sign Out
           </button>
@@ -160,22 +161,24 @@ function AdminHomepageContent() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-xl bg-gray-100 p-1">
-        {(["media", "hero", "carousel", "gallery", "services"] as Tab[]).map(
-          (tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab
-                  ? "bg-white text-amber-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              {TAB_LABELS[tab]}
-            </button>
-          )
-        )}
+      <div className="mb-6 -mx-1 overflow-x-auto px-1 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-max gap-1 rounded-xl bg-gray-100 p-1 sm:min-w-0">
+          {(["media", "hero", "carousel", "gallery", "services"] as Tab[]).map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-1 ${
+                  activeTab === tab
+                    ? "bg-white text-amber-900 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                {TAB_LABELS[tab]}
+              </button>
+            )
+          )}
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -820,7 +823,7 @@ function HeroEditor() {
               label="Heading Highlight"
               value={hero.headingHighlight}
               onChange={(v) => setHero({ ...hero, headingHighlight: v })}
-              placeholder="AR Banquets"
+              placeholder={APP_NAME}
             />
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
@@ -980,7 +983,7 @@ function CarouselEditor() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">
             Hero Carousel Images
@@ -995,7 +998,7 @@ function CarouselEditor() {
             setShowAddForm(true);
             setEditingId(null);
           }}
-          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
+          className="self-start rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 sm:self-auto"
         >
           Add Image
         </button>
@@ -1018,7 +1021,7 @@ function CarouselEditor() {
           background until you add images here.
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) =>
             editingId === item.id ? (
               <CarouselImageForm
@@ -1293,7 +1296,7 @@ function GalleryEditor() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-gray-900">Gallery Items</h2>
         <button
           onClick={() => {
@@ -1338,29 +1341,31 @@ function GalleryEditor() {
             ) : (
               <div
                 key={item.id}
-                className={`flex items-center gap-4 rounded-xl border bg-white p-4 shadow-sm ${
+                className={`flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:gap-4 ${
                   item.visible ? "border-gray-200" : "border-gray-200 opacity-60"
                 }`}
               >
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                  {(item.mediaFile?.url || item.imageUrl?.startsWith("http")) ? (
-                    <Image
-                      src={item.mediaFile?.url ?? item.imageUrl}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-gray-400">
-                      No image
-                    </div>
-                  )}
+                <div className="flex items-center gap-3 sm:contents">
+                  <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                    {(item.mediaFile?.url || item.imageUrl?.startsWith("http")) ? (
+                      <Image
+                        src={item.mediaFile?.url ?? item.imageUrl}
+                        alt={item.title}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-gray-400">
+                        No image
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                    <p className="truncate text-sm text-gray-500">{item.desc}</p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                  <p className="truncate text-sm text-gray-500">{item.desc}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                   <button
                     onClick={() => handleToggleVisibility(item)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -1628,7 +1633,7 @@ function ServicesEditor() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-gray-900">Services</h2>
         <button
           onClick={() => {
@@ -1673,30 +1678,32 @@ function ServicesEditor() {
             ) : (
               <div
                 key={item.id}
-                className={`flex items-center gap-4 rounded-xl border bg-white p-4 shadow-sm ${
+                className={`flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:gap-4 ${
                   item.visible ? "border-gray-200" : "border-gray-200 opacity-60"
                 }`}
               >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-                  <svg
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d={item.iconSvg}
-                    />
-                  </svg>
+                <div className="flex items-center gap-3 sm:contents">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                    <svg
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d={item.iconSvg}
+                      />
+                    </svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                    <p className="truncate text-sm text-gray-500">{item.desc}</p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                  <p className="truncate text-sm text-gray-500">{item.desc}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                   <button
                     onClick={() => handleToggleVisibility(item)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${

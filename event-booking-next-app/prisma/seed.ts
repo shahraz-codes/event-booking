@@ -5,6 +5,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME?.trim() || "AR Banquets";
+
 async function main() {
   const existingHero = await prisma.heroSection.findFirst();
   if (!existingHero) {
@@ -12,7 +14,7 @@ async function main() {
       data: {
         subtitle: "Premium Event Venue \u2022 Tolichowki, Hyderabad",
         heading: "Welcome to",
-        headingHighlight: "AR Banquets",
+        headingHighlight: APP_NAME,
         description:
           "Your premier destination for weddings, nikah, receptions, engagements, birthdays, and corporate events. Centrally air-conditioned halls accommodating up to 600 guests with in-house catering, d\u00e9cor, and entertainment.",
         logoUrl: "/images/logo.png",

@@ -11,6 +11,7 @@ import {
 } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import type { QuotationData } from "@/types";
+import { APP_NAME } from "@/lib/config";
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   wedding: "Wedding",
@@ -160,7 +161,7 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>AR Banquets</Text>
+          <Text style={styles.title}>{APP_NAME}</Text>
           <Text style={styles.subtitle}>
             9-4-86/227, AR Center, 5th &amp; 6th Floor, Tolichowki Road,
             Hyderabad, Telangana 500008
@@ -280,8 +281,7 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
         </View>
 
         <Text style={styles.footer}>
-          This is a computer-generated receipt. For queries, contact AR
-          Banquets.
+          This is a computer-generated receipt. For queries, contact {APP_NAME}.
         </Text>
       </Page>
     </Document>

@@ -228,29 +228,31 @@ function BookingStatusContent() {
   const progressIdx = booking ? getProgressIndex(booking.status) : -1;
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-12">
-      <div className="mb-10 text-center">
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mb-8 text-center sm:mb-10">
         <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
           Track Your Request
         </p>
-        <h1 className="text-3xl font-bold text-gray-900">Booking Status</h1>
-        <p className="mt-2 text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+          Booking Status
+        </h1>
+        <p className="mt-2 text-sm text-gray-600 sm:text-base">
           Enter your Booking ID to check the status
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="mb-8 flex gap-3">
+      <form onSubmit={handleSubmit} className="mb-8 flex gap-2 sm:gap-3">
         <input
           type="text"
           value={bookingId}
           onChange={(e) => setBookingId(e.target.value)}
           placeholder="e.g. BNQ-2026-0001"
-          className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm font-mono text-gray-900 placeholder-gray-400 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+          className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-3 text-sm font-mono text-gray-900 placeholder-gray-400 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 sm:px-4"
         />
         <button
           type="submit"
           disabled={loading || !bookingId.trim()}
-          className="rounded-xl bg-amber-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+          className="shrink-0 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50 sm:px-6"
         >
           {loading ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent inline-block" />
@@ -270,7 +272,7 @@ function BookingStatusContent() {
         <div className="space-y-4">
           {/* Progress Tracker */}
           {booking.status !== "REJECTED" && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
               <h3 className="mb-4 text-sm font-semibold text-gray-900">
                 Booking Progress
               </h3>
@@ -315,7 +317,7 @@ function BookingStatusContent() {
           )}
 
           {/* Status Card */}
-          <div className={`rounded-2xl border ${STATUS_CONFIG[booking.status].border} ${STATUS_CONFIG[booking.status].bg} p-6`}>
+          <div className={`rounded-2xl border ${STATUS_CONFIG[booking.status].border} ${STATUS_CONFIG[booking.status].bg} p-4 sm:p-6`}>
             <div className="mb-4 flex items-center gap-3">
               {STATUS_CONFIG[booking.status].icon}
               <div>
@@ -351,7 +353,7 @@ function BookingStatusContent() {
 
           {/* Unlock Section (when basic access) */}
           {accessLevel === "basic" && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-6">
               <div className="mb-3 flex items-center gap-2">
                 <svg className="h-5 w-5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -390,7 +392,7 @@ function BookingStatusContent() {
 
           {/* Quotation (full access only) */}
           {fullBooking?.quotation && (
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:p-6">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-blue-900">
                   Quotation
@@ -407,8 +409,8 @@ function BookingStatusContent() {
                   {fullBooking.quotation.status}
                 </span>
               </div>
-              <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
+                <table className="w-full min-w-[360px] text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
                       <th className="px-4 py-2 text-left font-medium text-gray-600">
@@ -506,7 +508,7 @@ function BookingStatusContent() {
           {fullBooking &&
             fullBooking.status === "APPROVED" &&
             fullBooking.totalAmount != null && (
-              <div className="rounded-2xl border border-green-200 bg-green-50 p-6">
+              <div className="rounded-2xl border border-green-200 bg-green-50 p-4 sm:p-6">
                 <h3 className="mb-3 text-sm font-semibold text-green-900">
                   Payment Summary
                 </h3>

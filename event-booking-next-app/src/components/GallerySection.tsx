@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import GalleryImage from "./GalleryImage";
+import { APP_NAME } from "@/lib/config";
 
 interface GalleryItem {
   id: string;
@@ -56,13 +57,13 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
   const selected = selectedIndex !== null ? gallery[selectedIndex] : null;
 
   return (
-    <section className="mx-auto max-w-7xl px-6 py-20">
+    <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
       <div className="mb-12 text-center">
         <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
           Our Venue
         </p>
-        <h2 className="text-3xl font-bold text-gray-900">
-          A Glimpse of AR Banquets
+        <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+          A Glimpse of {APP_NAME}
         </h2>
       </div>
       <div className="flex flex-wrap justify-center gap-6">

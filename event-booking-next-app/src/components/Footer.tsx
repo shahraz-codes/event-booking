@@ -1,11 +1,13 @@
+import { APP_NAME } from "@/lib/config";
+
 export default function Footer() {
   return (
     <footer className="border-t border-amber-100 bg-amber-950 text-amber-100">
-      <div className="mx-auto max-w-7xl px-6 py-12">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
         <div className="grid gap-8 md:grid-cols-3">
           <div>
             <h3 className="mb-3 text-lg font-semibold text-white">
-              AR Banquets
+              {APP_NAME}
             </h3>
             <p className="text-sm leading-relaxed text-amber-200/70">
               Hyderabad&apos;s premier banquet hall for weddings, receptions,
@@ -67,7 +69,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 border-t border-amber-800 pt-8 text-center text-sm text-amber-200/50">
-          &copy; {new Date().getFullYear()} AR Banquets. All rights reserved.
+          &copy; {new Date().getFullYear()} {APP_NAME}. All rights reserved.
         </div>
       </div>
     </footer>

@@ -1,5 +1,7 @@
 "use client";
 
+import { APP_NAME } from "@/lib/config";
+
 const PROFILE_URL = "https://www.instagram.com/arbanquets";
 
 const HIGHLIGHTS = [
@@ -13,7 +15,7 @@ const HIGHLIGHTS = [
 
 export default function InstagramFeed() {
   return (
-    <section className="px-6 py-20">
+    <section className="px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-4xl">
         <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg">
           <div className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-6 py-8 text-center text-white sm:px-10">
@@ -25,7 +27,7 @@ export default function InstagramFeed() {
             <h2 className="text-2xl font-bold sm:text-3xl">@arbanquets</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-white/80">
               Follow us for the latest events, stunning décor setups, and
-              behind-the-scenes moments at AR Banquets.
+              behind-the-scenes moments at {APP_NAME}.
             </p>
           </div>
 

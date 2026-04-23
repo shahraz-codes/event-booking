@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { APP_NAME } from "@/lib/config";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -41,15 +42,18 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-amber-100 bg-white/80 backdrop-blur-md">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-        <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-amber-900 sm:gap-2.5 sm:text-xl">
+        <Link
+          href="/"
+          className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight text-amber-900 sm:gap-2.5 sm:text-xl"
+        >
           <Image
             src="/images/logo.png"
-            alt="AR Banquets logo"
+            alt={`${APP_NAME} logo`}
             width={36}
             height={36}
-            className="rounded-full"
+            className="shrink-0 rounded-full"
           />
-          AR Banquets
+          <span className="truncate">{APP_NAME}</span>
         </Link>
 
         {/* Desktop nav */}

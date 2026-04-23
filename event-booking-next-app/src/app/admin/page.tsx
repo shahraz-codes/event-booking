@@ -467,48 +467,52 @@ function AdminPageContent() {
     b.status === "QUOTATION_FINALIZED";
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
-      <div className="mb-8 flex items-start justify-between">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="mt-1 text-gray-600">
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            Admin Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-gray-600 sm:text-base">
             Manage bookings, quotations, and block dates
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <Link
             href="/admin/homepage"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:px-4"
           >
             Homepage
           </Link>
           <button
             onClick={handleLogout}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:px-4"
           >
             Sign Out
           </button>
         </div>
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-3">
+      <div className="grid gap-6 sm:gap-8 xl:grid-cols-3">
         {/* Bookings List */}
         <div className="xl:col-span-2">
           {/* Tabs */}
-          <div className="mb-4 flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors sm:text-sm ${
-                  activeTab === tab.key
-                    ? "bg-white text-amber-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="mb-4 -mx-1 overflow-x-auto px-1 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex min-w-max gap-1 rounded-xl bg-gray-100 p-1 sm:min-w-0">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors sm:flex-1 sm:text-sm ${
+                    activeTab === tab.key
+                      ? "bg-white text-amber-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Booking Cards */}
@@ -525,7 +529,7 @@ function AdminPageContent() {
               {bookings.map((b) => (
                 <div
                   key={b.id}
-                  className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                  className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
                 >
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                     <div>
@@ -695,13 +699,16 @@ function AdminPageContent() {
 
                   {/* Quotation Builder */}
                   {quotationTarget === b.id && (
-                    <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
                       <h4 className="mb-3 text-sm font-semibold text-blue-900">
                         {b.quotation ? "Edit Quotation" : "Create Quotation"}
                       </h4>
-                      <div className="space-y-2">
+                      <div className="space-y-3 sm:space-y-2">
                         {quotationItems.map((item, idx) => (
-                          <div key={idx} className="flex gap-2">
+                          <div
+                            key={idx}
+                            className="grid grid-cols-[1fr_auto] gap-2 rounded-md border border-blue-100 bg-white/60 p-2 sm:flex sm:items-center sm:border-0 sm:bg-transparent sm:p-0"
+                          >
                             <input
                               type="text"
                               placeholder="Particular (e.g. 2 A/C Halls)"
@@ -713,53 +720,56 @@ function AdminPageContent() {
                                   e.target.value
                                 )
                               }
-                              className="flex-1 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
+                              className="col-span-2 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400 sm:col-span-1 sm:flex-1"
                             />
-                            <input
-                              type="number"
-                              placeholder="Qty"
-                              value={item.quantity ?? ""}
-                              onChange={(e) =>
-                                updateQuotationRow(
-                                  idx,
-                                  "quantity",
-                                  e.target.value
-                                    ? parseInt(e.target.value)
-                                    : null
-                                )
-                              }
-                              className="w-16 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Unit"
-                              value={item.unit ?? ""}
-                              onChange={(e) =>
-                                updateQuotationRow(
-                                  idx,
-                                  "unit",
-                                  e.target.value || null
-                                )
-                              }
-                              className="w-20 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
-                            />
-                            <input
-                              type="number"
-                              placeholder="Amount"
-                              value={item.amount || ""}
-                              onChange={(e) =>
-                                updateQuotationRow(
-                                  idx,
-                                  "amount",
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                              className="w-28 rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400"
-                            />
+                            <div className="col-span-2 grid grid-cols-3 gap-2 sm:col-span-1 sm:flex sm:items-center">
+                              <input
+                                type="number"
+                                placeholder="Qty"
+                                value={item.quantity ?? ""}
+                                onChange={(e) =>
+                                  updateQuotationRow(
+                                    idx,
+                                    "quantity",
+                                    e.target.value
+                                      ? parseInt(e.target.value)
+                                      : null
+                                  )
+                                }
+                                className="rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400 sm:w-16"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Unit"
+                                value={item.unit ?? ""}
+                                onChange={(e) =>
+                                  updateQuotationRow(
+                                    idx,
+                                    "unit",
+                                    e.target.value || null
+                                  )
+                                }
+                                className="rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400 sm:w-20"
+                              />
+                              <input
+                                type="number"
+                                placeholder="Amount"
+                                value={item.amount || ""}
+                                onChange={(e) =>
+                                  updateQuotationRow(
+                                    idx,
+                                    "amount",
+                                    parseFloat(e.target.value) || 0
+                                  )
+                                }
+                                className="rounded-md border border-blue-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400 sm:w-28"
+                              />
+                            </div>
                             <button
                               onClick={() => removeQuotationRow(idx)}
                               disabled={quotationItems.length === 1}
-                              className="rounded-md p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-30"
+                              className="col-start-2 row-start-1 justify-self-end rounded-md p-1.5 text-red-500 hover:bg-red-50 disabled:opacity-30 sm:col-start-auto sm:row-start-auto"
+                              aria-label="Remove item"
                             >
                               <svg
                                 className="h-4 w-4"
@@ -804,7 +814,7 @@ function AdminPageContent() {
                         </span>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         <input
                           type="number"
                           placeholder="Advance Amount"
@@ -821,7 +831,7 @@ function AdminPageContent() {
                         />
                       </div>
 
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <button
                           onClick={() => handleSaveQuotation(b.id, b)}
                           disabled={quotationLoading}
@@ -993,11 +1003,11 @@ function AdminPageContent() {
                   {canApprove(b) && (
                     <div className="border-t border-gray-100 pt-4">
                       {approvalTarget === b.id ? (
-                        <div className="space-y-3 rounded-lg border border-green-200 bg-green-50 p-4">
+                        <div className="space-y-3 rounded-lg border border-green-200 bg-green-50 p-3 sm:p-4">
                           <h4 className="text-sm font-semibold text-green-900">
                             Approve Booking
                           </h4>
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid gap-3 sm:grid-cols-2">
                             <div>
                               <label className="mb-1 block text-xs font-medium text-green-800">
                                 Total Amount (&#8377;)
@@ -1134,11 +1144,11 @@ function AdminPageContent() {
 
                   {b.status === "APPROVED" && (
                     <div className="border-t border-gray-100 pt-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                         <button
                           onClick={() => handleAction(b.id, "cancel")}
                           disabled={actionLoading === b.id}
-                          className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                          className="self-start rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
                         >
                           {actionLoading === b.id ? "..." : "Cancel Booking"}
                         </button>
