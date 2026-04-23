@@ -11,6 +11,7 @@ import {
 } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import type { QuotationData } from "@/types";
+import { APP_NAME } from "@/lib/config";
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   wedding: "Wedding",
@@ -177,7 +178,7 @@ function QuotationDocument({
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>AR Banquets</Text>
+          <Text style={styles.title}>{APP_NAME}</Text>
           <Text style={styles.subtitle}>
             9-4-86/227, AR Center, 5th &amp; 6th Floor, Tolichowki Road,
             Hyderabad, Telangana 500008
@@ -309,7 +310,7 @@ function QuotationDocument({
         )}
 
         <Text style={styles.footer}>
-          This is a computer-generated quotation from AR Banquets. For queries,
+          This is a computer-generated quotation from {APP_NAME}. For queries,
           contact us at +91 7075751754.
         </Text>
       </Page>

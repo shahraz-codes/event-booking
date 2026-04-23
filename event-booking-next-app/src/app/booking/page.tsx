@@ -84,8 +84,8 @@ export default function BookingPage() {
 
   if (result) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-20 text-center">
-        <div className="rounded-2xl border border-green-200 bg-green-50 p-10">
+      <div className="mx-auto max-w-lg px-4 py-12 text-center sm:px-6 sm:py-20">
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-6 sm:p-10">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -182,18 +182,20 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
-      <div className="mb-10 text-center">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mb-8 text-center sm:mb-10">
         <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
           Reserve Your Date
         </p>
-        <h1 className="text-3xl font-bold text-gray-900">Book Your Event</h1>
-        <p className="mt-2 text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+          Book Your Event
+        </h1>
+        <p className="mt-2 text-sm text-gray-600 sm:text-base">
           Select an available date and fill in your details
         </p>
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-2">
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
         {/* Calendar */}
         <div>
           <h2 className="mb-4 text-lg font-semibold text-gray-900">
