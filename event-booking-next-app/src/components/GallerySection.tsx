@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import GalleryImage from "./GalleryImage";
+import HorizontalScroller from "./HorizontalScroller";
 import { APP_NAME } from "@/lib/config";
 
 interface GalleryItem {
@@ -66,12 +67,12 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
           A Glimpse of {APP_NAME}
         </h2>
       </div>
-      <div className="flex flex-wrap justify-center gap-6">
+      <HorizontalScroller ariaLabel="Gallery" className="gap-4 sm:gap-6">
         {gallery.map((img, index) => (
           <div
             key={img.id}
             onClick={() => open(index)}
-            className={`group relative flex h-64 w-full cursor-pointer flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)] ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
+            className={`group relative flex h-64 w-[78%] shrink-0 cursor-pointer snap-start flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-4.5rem)/4)] ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
           >
             {img.imageUrl && <GalleryImage src={img.imageUrl} alt={img.title} />}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -81,7 +82,7 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
             </div>
           </div>
         ))}
-      </div>
+      </HorizontalScroller>
 
       {selected && (
         <div

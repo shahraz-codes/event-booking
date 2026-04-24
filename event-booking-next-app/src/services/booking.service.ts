@@ -143,15 +143,48 @@ export async function getBookingByBookingIdWithSecret(
   return rest;
 }
 
-export async function getAllBookings(status?: BookingStatus) {
-  return prisma.booking.findMany({
-    where: status ? { status } : undefined,
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      ...BOOKING_SENSITIVE_SELECT,
-    },
-  });
+export async function getAllBookings(
+  status?: BookingStatus,
+  pagination?: { page?: number; pageSize?: number }
+) {
+  const where = status ? { status } : undefined;
+
+  if (!pagination) {
+    return prisma.booking.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        ...BOOKING_SENSITIVE_SELECT,
+      },
+    });
+  }
+
+  const page = Math.max(1, pagination.page ?? 1);
+  const pageSize = Math.min(100, Math.max(1, pagination.pageSize ?? 10));
+  const skip = (page - 1) * pageSize;
+
+  const [total, data] = await Promise.all([
+    prisma.booking.count({ where }),
+    prisma.booking.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        ...BOOKING_SENSITIVE_SELECT,
+      },
+    }),
+  ]);
+
+  return {
+    data,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
 export async function approveBooking(
