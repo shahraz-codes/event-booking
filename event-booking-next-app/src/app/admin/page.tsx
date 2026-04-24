@@ -81,7 +81,12 @@ function AdminPageContent() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [noteInput, setNoteInput] = useState<Record<string, string>>({});
   const [blockDate, setBlockDate] = useState("");
@@ -120,19 +125,26 @@ function AdminPageContent() {
 
   const fetchBookings = useCallback(async () => {
     try {
-      const url =
-        activeTab === "all"
-          ? "/api/admin/bookings"
-          : `/api/admin/bookings?status=${activeTab}`;
-      const res = await fetch(url);
+      const params = new URLSearchParams();
+      if (activeTab !== "all") params.set("status", activeTab);
+      params.set("page", String(page));
+      params.set("pageSize", String(pageSize));
+      const res = await fetch(`/api/admin/bookings?${params.toString()}`);
       const json = await res.json();
-      if (json.success) setBookings(json.data);
+      if (json.success) {
+        setBookings(json.data);
+        const total = json.total ?? json.data.length;
+        const pages = json.totalPages ?? 1;
+        setTotalBookings(total);
+        setTotalPages(pages);
+        if (page > pages) setPage(pages);
+      }
     } catch (err) {
       console.error("Failed to fetch bookings:", err);
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, page, pageSize]);
 
   const fetchBlocked = useCallback(async () => {
     try {
@@ -143,6 +155,10 @@ function AdminPageContent() {
       console.error("Failed to fetch blocked dates:", err);
     }
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, pageSize]);
 
   useEffect(() => {
     setLoading(true);
@@ -496,14 +512,52 @@ function AdminPageContent() {
       <div className="grid gap-6 sm:gap-8 xl:grid-cols-3">
         {/* Bookings List */}
         <div className="xl:col-span-2">
-          {/* Tabs */}
-          <div className="mb-4 -mx-1 overflow-x-auto px-1 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex min-w-max gap-1 rounded-xl bg-gray-100 p-1 sm:min-w-0">
+          {/* Mobile: Filter button */}
+          <div className="mb-4 sm:hidden">
+            <button
+              type="button"
+              onClick={() => setFilterModalOpen(true)}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+            >
+              <span className="flex items-center gap-2">
+                <svg
+                  className="h-4 w-4 text-gray-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                  />
+                </svg>
+                <span>Filter</span>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                  {TABS.find((t) => t.key === activeTab)?.label ?? "All"}
+                </span>
+              </span>
+              <svg
+                className="h-4 w-4 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Desktop: Horizontal tabs */}
+          <div className="mb-4 hidden sm:block">
+            <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
               {TABS.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors sm:flex-1 sm:text-sm ${
+                  className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     activeTab === tab.key
                       ? "bg-white text-amber-900 shadow-sm"
                       : "text-gray-600 hover:text-gray-900"
@@ -514,6 +568,74 @@ function AdminPageContent() {
               ))}
             </div>
           </div>
+
+          {/* Mobile filter modal */}
+          {filterModalOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Filter bookings"
+              className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:hidden"
+              onClick={() => setFilterModalOpen(false)}
+            >
+              <div
+                className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-gray-900">
+                    Filter by status
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setFilterModalOpen(false)}
+                    aria-label="Close"
+                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(tab.key);
+                        setFilterModalOpen(false);
+                      }}
+                      className={`flex items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
+                        activeTab === tab.key
+                          ? "bg-amber-50 text-amber-900"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      {activeTab === tab.key && (
+                        <svg
+                          className="h-5 w-5 text-amber-700"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Booking Cards */}
           {loading ? (
@@ -1160,6 +1282,88 @@ function AdminPageContent() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && totalBookings > 0 && (
+            <div className="mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+              <div className="flex items-center justify-between gap-3 sm:justify-start">
+                <p className="text-xs text-gray-600 sm:text-sm">
+                  Showing{" "}
+                  <span className="font-semibold text-gray-900">
+                    {(page - 1) * pageSize + 1}
+                  </span>
+                  –
+                  <span className="font-semibold text-gray-900">
+                    {Math.min(page * pageSize, totalBookings)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-900">
+                    {totalBookings}
+                  </span>
+                </p>
+                <label className="flex items-center gap-2 text-xs text-gray-600 sm:text-sm">
+                  <span className="hidden sm:inline">Per page</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
+                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 sm:text-sm"
+                  >
+                    {[5, 10, 20, 50].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
+                  aria-label="Previous page"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
+
+                <span className="text-xs font-medium text-gray-700 sm:text-sm">
+                  Page{" "}
+                  <span className="font-semibold text-amber-900">{page}</span>{" "}
+                  of <span className="font-semibold text-gray-900">{totalPages}</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
+                  aria-label="Next page"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
         </div>

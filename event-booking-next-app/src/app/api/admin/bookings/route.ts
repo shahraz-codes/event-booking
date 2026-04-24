@@ -14,9 +14,8 @@ const UNAUTHORIZED = () =>
 export async function GET(request: NextRequest) {
   try {
     if (!(await getAdminSession())) return UNAUTHORIZED();
-    const status = request.nextUrl.searchParams.get("status") as
-      | BookingStatus
-      | null;
+    const params = request.nextUrl.searchParams;
+    const status = params.get("status") as BookingStatus | null;
 
     const validStatuses: BookingStatus[] = [
       "PENDING",
@@ -27,6 +26,20 @@ export async function GET(request: NextRequest) {
     ];
     const filter =
       status && validStatuses.includes(status) ? status : undefined;
+
+    const pageParam = params.get("page");
+    const pageSizeParam = params.get("pageSize");
+    const usePagination = pageParam !== null || pageSizeParam !== null;
+
+    if (usePagination) {
+      const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+      const pageSize = Math.min(
+        100,
+        Math.max(1, parseInt(pageSizeParam ?? "10", 10) || 10)
+      );
+      const result = await getAllBookings(filter, { page, pageSize });
+      return Response.json({ success: true, ...result });
+    }
 
     const bookings = await getAllBookings(filter);
     return Response.json({ success: true, data: bookings });

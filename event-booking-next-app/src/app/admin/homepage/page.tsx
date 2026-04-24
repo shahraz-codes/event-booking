@@ -122,6 +122,8 @@ export default function AdminHomepagePage() {
   );
 }
 
+const ALL_TABS: Tab[] = ["media", "hero", "carousel", "gallery", "services"];
+
 function AdminHomepageContent() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("media");
@@ -129,6 +131,15 @@ function AdminHomepageContent() {
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST" });
     router.push("/admin/login");
+  };
+
+  const currentIndex = ALL_TABS.indexOf(activeTab);
+  const goPrev = () => {
+    if (currentIndex > 0) setActiveTab(ALL_TABS[currentIndex - 1]);
+  };
+  const goNext = () => {
+    if (currentIndex < ALL_TABS.length - 1)
+      setActiveTab(ALL_TABS[currentIndex + 1]);
   };
 
   return (
@@ -160,24 +171,68 @@ function AdminHomepageContent() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 -mx-1 overflow-x-auto px-1 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex min-w-max gap-1 rounded-xl bg-gray-100 p-1 sm:min-w-0">
-          {(["media", "hero", "carousel", "gallery", "services"] as Tab[]).map(
-            (tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-1 ${
-                  activeTab === tab
-                    ? "bg-white text-amber-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                {TAB_LABELS[tab]}
-              </button>
-            )
-          )}
+      {/* Mobile: Prev / Current / Next stepper */}
+      <div className="mb-6 flex items-center gap-2 rounded-xl bg-gray-100 p-1 sm:hidden">
+        <button
+          type="button"
+          onClick={goPrev}
+          disabled={currentIndex === 0}
+          aria-label="Previous section"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-amber-900 shadow-sm transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 disabled:shadow-none"
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="flex flex-1 flex-col items-center justify-center text-center">
+          <span className="text-sm font-semibold text-amber-900">
+            {TAB_LABELS[activeTab]}
+          </span>
+          <span className="text-[11px] font-medium text-gray-500">
+            {currentIndex + 1} of {ALL_TABS.length}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={goNext}
+          disabled={currentIndex === ALL_TABS.length - 1}
+          aria-label="Next section"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-amber-900 shadow-sm transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 disabled:shadow-none"
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Desktop: Horizontal tabs */}
+      <div className="mb-6 hidden sm:block">
+        <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+          {ALL_TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab
+                  ? "bg-white text-amber-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {TAB_LABELS[tab]}
+            </button>
+          ))}
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import GallerySection from "@/components/GallerySection";
 import HeroCarousel from "@/components/HeroCarousel";
 import InstagramFeed from "@/components/InstagramFeed";
+import ServicesSection from "@/components/ServicesSection";
 import AnimateOnScroll, {
   StaggerContainer,
   StaggerItem,
@@ -152,52 +153,7 @@ export default async function HomePage() {
       )}
 
       {/* Services */}
-      {services.length > 0 && (
-        <section className="bg-amber-50/50 px-4 py-14 sm:px-6 sm:py-20">
-          <div className="mx-auto max-w-7xl">
-            <AnimateOnScroll variant="fadeUp">
-              <div className="mb-10 text-center sm:mb-12">
-                <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
-                  What We Offer
-                </p>
-                <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Our Services</h2>
-              </div>
-            </AnimateOnScroll>
-            <StaggerContainer
-              className="flex flex-wrap justify-center gap-6 sm:gap-8"
-              staggerDelay={0.12}
-            >
-              {services.map((service) => (
-                <StaggerItem key={service.id} variant="fadeUp" className="w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-24px)]">
-                  <div className="group flex h-full flex-col rounded-2xl border border-amber-100 bg-white p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
-                    <div className="mb-4 inline-flex rounded-xl bg-amber-100 p-3 text-amber-700 transition-transform group-hover:scale-110 self-start">
-                      <svg
-                        className="h-8 w-8"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d={service.iconSvg}
-                        />
-                      </svg>
-                    </div>
-                    <h3 className="mb-2 text-lg font-semibold text-gray-900">
-                      {service.title}
-                    </h3>
-                    <p className="flex-1 text-sm leading-relaxed text-gray-600">
-                      {service.desc}
-                    </p>
-                  </div>
-                </StaggerItem>
-              ))}
-            </StaggerContainer>
-          </div>
-        </section>
-      )}
+      <ServicesSection services={services} />
 
       {/* Instagram */}
       <AnimateOnScroll variant="fadeUp">
