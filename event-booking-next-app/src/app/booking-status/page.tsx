@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, useEffect, Suspense } from "react";
+import { Fragment, useState, FormEvent, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { EVENT_TYPES, BOOKING_STATUS_LABELS } from "@/types";
 import type { BookingComment, QuotationData, BookingStatus } from "@/types";
@@ -276,42 +276,58 @@ function BookingStatusContent() {
               <h3 className="mb-4 text-sm font-semibold text-gray-900">
                 Booking Progress
               </h3>
-              <div className="flex items-center justify-between">
-                {PROGRESS_STEPS.map((step, idx) => (
-                  <div key={step.status} className="flex flex-1 items-center">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
-                          idx <= progressIdx
-                            ? "bg-amber-600 text-white"
-                            : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        {idx < progressIdx ? (
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          idx + 1
-                        )}
+              <div className="mx-auto flex w-full max-w-md items-start">
+                {PROGRESS_STEPS.map((step, idx) => {
+                  const isLast = idx === PROGRESS_STEPS.length - 1;
+                  const isReached = idx <= progressIdx;
+                  const isCompleted =
+                    idx < progressIdx || (isLast && isReached);
+                  return (
+                    <Fragment key={step.status}>
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
+                            isReached
+                              ? "bg-amber-600 text-white"
+                              : "bg-gray-200 text-gray-500"
+                          }`}
+                        >
+                          {isCompleted ? (
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={3}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          ) : (
+                            idx + 1
+                          )}
+                        </div>
+                        <span
+                          className={`mt-1 text-[10px] font-medium ${
+                            isReached ? "text-amber-800" : "text-gray-400"
+                          }`}
+                        >
+                          {step.label}
+                        </span>
                       </div>
-                      <span
-                        className={`mt-1 text-[10px] font-medium ${
-                          idx <= progressIdx ? "text-amber-800" : "text-gray-400"
-                        }`}
-                      >
-                        {step.label}
-                      </span>
-                    </div>
-                    {idx < PROGRESS_STEPS.length - 1 && (
-                      <div
-                        className={`mx-1 h-0.5 flex-1 ${
-                          idx < progressIdx ? "bg-amber-600" : "bg-gray-200"
-                        }`}
-                      />
-                    )}
-                  </div>
-                ))}
+                      {!isLast && (
+                        <div
+                          className={`mx-1 mt-[15px] h-0.5 flex-1 ${
+                            idx < progressIdx ? "bg-amber-600" : "bg-gray-200"
+                          }`}
+                        />
+                      )}
+                    </Fragment>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -409,17 +425,17 @@ function BookingStatusContent() {
                   {fullBooking.quotation.status}
                 </span>
               </div>
-              <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
-                <table className="w-full min-w-[360px] text-sm">
+              <div className="rounded-xl bg-white shadow-sm">
+                <table className="w-full table-auto text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="px-4 py-2 text-left font-medium text-gray-600">
+                      <th className="w-8 px-2 py-2 text-left font-medium text-gray-600 sm:px-4">
                         #
                       </th>
-                      <th className="px-4 py-2 text-left font-medium text-gray-600">
+                      <th className="px-2 py-2 text-left font-medium text-gray-600 sm:px-4">
                         Particular
                       </th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-600">
+                      <th className="px-2 py-2 text-right font-medium text-gray-600 sm:px-4">
                         Amount
                       </th>
                     </tr>
@@ -430,8 +446,8 @@ function BookingStatusContent() {
                         key={item.id || idx}
                         className="border-b border-gray-50"
                       >
-                        <td className="px-4 py-2 text-gray-400">{idx + 1}</td>
-                        <td className="px-4 py-2 text-gray-800">
+                        <td className="px-2 py-2 align-top text-gray-400 sm:px-4">{idx + 1}</td>
+                        <td className="break-words px-2 py-2 text-gray-800 sm:px-4">
                           {item.particular}
                           {item.quantity && item.unit && (
                             <span className="ml-1 text-xs text-gray-500">
@@ -439,7 +455,7 @@ function BookingStatusContent() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-right font-medium text-gray-900">
+                        <td className="whitespace-nowrap px-2 py-2 text-right align-top font-medium text-gray-900 sm:px-4">
                           {item.amount ? `₹${item.amount.toLocaleString("en-IN")}` : "—"}
                         </td>
                       </tr>
@@ -447,28 +463,28 @@ function BookingStatusContent() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-gray-200 bg-gray-50">
-                      <td colSpan={2} className="px-4 py-2 font-semibold text-gray-900">
+                      <td colSpan={2} className="px-2 py-2 font-semibold text-gray-900 sm:px-4">
                         Total
                       </td>
-                      <td className="px-4 py-2 text-right font-bold text-gray-900">
+                      <td className="whitespace-nowrap px-2 py-2 text-right font-bold text-gray-900 sm:px-4">
                         &#8377;{fullBooking.quotation.totalAmount.toLocaleString("en-IN")}
                       </td>
                     </tr>
                     {fullBooking.quotation.advanceAmount > 0 && (
                       <>
                         <tr>
-                          <td colSpan={2} className="px-4 py-1 text-gray-600">
+                          <td colSpan={2} className="px-2 py-1 text-gray-600 sm:px-4">
                             Advance
                           </td>
-                          <td className="px-4 py-1 text-right font-medium text-gray-700">
+                          <td className="whitespace-nowrap px-2 py-1 text-right font-medium text-gray-700 sm:px-4">
                             &#8377;{fullBooking.quotation.advanceAmount.toLocaleString("en-IN")}
                           </td>
                         </tr>
                         <tr>
-                          <td colSpan={2} className="px-4 py-1 font-semibold text-amber-800">
+                          <td colSpan={2} className="px-2 py-1 font-semibold text-amber-800 sm:px-4">
                             Balance
                           </td>
-                          <td className="px-4 py-1 text-right font-bold text-amber-800">
+                          <td className="whitespace-nowrap px-2 py-1 text-right font-bold text-amber-800 sm:px-4">
                             &#8377;
                             {(
                               fullBooking.quotation.totalAmount -
