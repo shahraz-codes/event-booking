@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import Calendar, { useCalendarData } from "@/components/Calendar";
 import { EVENT_TYPES, bookingSchema, getZodErrorMessage } from "@/types";
 import Link from "next/link";
@@ -28,6 +28,12 @@ export default function BookingPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BookingResult | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
+
+  useEffect(() => {
+    if (result && typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [result]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

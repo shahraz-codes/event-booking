@@ -637,6 +637,88 @@ function AdminPageContent() {
             </div>
           )}
 
+          {/* Pagination (above the list) */}
+          {!loading && totalBookings > 0 && (
+            <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+              <div className="flex items-center justify-between gap-3 sm:justify-start">
+                <p className="text-xs text-gray-600 sm:text-sm">
+                  Showing{" "}
+                  <span className="font-semibold text-gray-900">
+                    {(page - 1) * pageSize + 1}
+                  </span>
+                  –
+                  <span className="font-semibold text-gray-900">
+                    {Math.min(page * pageSize, totalBookings)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-900">
+                    {totalBookings}
+                  </span>
+                </p>
+                <label className="flex items-center gap-2 text-xs text-gray-600 sm:text-sm">
+                  <span className="hidden sm:inline">Per page</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
+                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 sm:text-sm"
+                  >
+                    {[5, 10, 20, 50].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
+                  aria-label="Previous page"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
+
+                <span className="text-xs font-medium text-gray-700 sm:text-sm">
+                  Page{" "}
+                  <span className="font-semibold text-amber-900">{page}</span>{" "}
+                  of <span className="font-semibold text-gray-900">{totalPages}</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
+                  aria-label="Next page"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Booking Cards */}
           {loading ? (
             <div className="flex h-48 items-center justify-center">
@@ -1282,88 +1364,6 @@ function AdminPageContent() {
                   )}
                 </div>
               ))}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {!loading && totalBookings > 0 && (
-            <div className="mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
-              <div className="flex items-center justify-between gap-3 sm:justify-start">
-                <p className="text-xs text-gray-600 sm:text-sm">
-                  Showing{" "}
-                  <span className="font-semibold text-gray-900">
-                    {(page - 1) * pageSize + 1}
-                  </span>
-                  –
-                  <span className="font-semibold text-gray-900">
-                    {Math.min(page * pageSize, totalBookings)}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-semibold text-gray-900">
-                    {totalBookings}
-                  </span>
-                </p>
-                <label className="flex items-center gap-2 text-xs text-gray-600 sm:text-sm">
-                  <span className="hidden sm:inline">Per page</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
-                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 sm:text-sm"
-                  >
-                    {[5, 10, 20, 50].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
-                  aria-label="Previous page"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                  <span className="hidden sm:inline">Previous</span>
-                </button>
-
-                <span className="text-xs font-medium text-gray-700 sm:text-sm">
-                  Page{" "}
-                  <span className="font-semibold text-amber-900">{page}</span>{" "}
-                  of <span className="font-semibold text-gray-900">{totalPages}</span>
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm"
-                  aria-label="Next page"
-                >
-                  <span className="hidden sm:inline">Next</span>
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
             </div>
           )}
         </div>
