@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getAdminSession } from "@/lib/auth";
 import { getHero, upsertHero } from "@/services/homepage.service";
 
@@ -41,6 +42,7 @@ export async function PUT(request: NextRequest) {
       logoMediaFileId: logoMediaFileId || null,
     });
 
+    revalidatePath("/");
     return Response.json({ success: true, data: hero });
   } catch (error) {
     console.error("Update hero error:", error);

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getAdminSession } from "@/lib/auth";
 import {
   getAllGalleryItems,
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const item = await createGalleryItem({ title, desc, mediaFileId, gradient });
+    revalidatePath("/");
     return Response.json({ success: true, data: item }, { status: 201 });
   } catch (error) {
     console.error("Create gallery item error:", error);
@@ -62,6 +64,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const item = await updateGalleryItem(id, data);
+    revalidatePath("/");
     return Response.json({ success: true, data: item });
   } catch (error) {
     console.error("Update gallery item error:", error);
@@ -86,6 +89,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await deleteGalleryItem(id);
+    revalidatePath("/");
     return Response.json({ success: true });
   } catch (error) {
     console.error("Delete gallery item error:", error);
