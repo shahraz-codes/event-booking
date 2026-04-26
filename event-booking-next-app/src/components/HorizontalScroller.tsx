@@ -51,7 +51,7 @@ export default function HorizontalScroller({
     <div className="relative" aria-label={ariaLabel} role="region">
       <div
         ref={scrollerRef}
-        className={`-mx-4 flex snap-x snap-mandatory scroll-smooth overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
+        className={`-mx-4 flex snap-x snap-mandatory scroll-smooth overflow-x-auto px-4 pb-4 [justify-content:safe_center] sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
       >
         {children}
       </div>

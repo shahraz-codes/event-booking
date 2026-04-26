@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getAdminSession } from "@/lib/auth";
 import {
   getAllCarouselImages,
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const item = await createCarouselImage({ mediaFileId, alt });
+    revalidatePath("/");
     return Response.json({ success: true, data: item }, { status: 201 });
   } catch (error) {
     console.error("Create carousel image error:", error);
@@ -62,6 +64,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const item = await updateCarouselImage(id, data);
+    revalidatePath("/");
     return Response.json({ success: true, data: item });
   } catch (error) {
     console.error("Update carousel image error:", error);
@@ -86,6 +89,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await deleteCarouselImage(id);
+    revalidatePath("/");
     return Response.json({ success: true });
   } catch (error) {
     console.error("Delete carousel image error:", error);

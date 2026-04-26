@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getAdminSession } from "@/lib/auth";
 import {
   getAllServiceItems,
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const item = await createServiceItem({ title, desc, iconSvg });
+    revalidatePath("/");
     return Response.json({ success: true, data: item }, { status: 201 });
   } catch (error) {
     console.error("Create service item error:", error);
@@ -62,6 +64,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const item = await updateServiceItem(id, data);
+    revalidatePath("/");
     return Response.json({ success: true, data: item });
   } catch (error) {
     console.error("Update service item error:", error);
@@ -86,6 +89,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await deleteServiceItem(id);
+    revalidatePath("/");
     return Response.json({ success: true });
   } catch (error) {
     console.error("Delete service item error:", error);
