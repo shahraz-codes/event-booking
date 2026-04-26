@@ -55,7 +55,7 @@ export default function HorizontalScroller({
       <div className="sm:px-16">
         <div
           ref={scrollerRef}
-          className={`-mx-4 flex snap-x snap-mandatory scroll-smooth overflow-x-auto px-4 pb-4 [justify-content:safe_center] sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
+          className={`flex snap-x snap-mandatory scroll-smooth overflow-x-auto px-4 pb-4 [justify-content:safe_center] sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
         >
           {children}
         </div>
