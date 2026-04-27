@@ -60,7 +60,7 @@ export function FloatingLogo({ children }: { children: React.ReactNode }) {
 export function ShimmerText({ children }: { children: React.ReactNode }) {
   return (
     <motion.span
-      className="inline-block bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent bg-[length:200%_100%]"
+      className="inline-block bg-gradient-to-r from-brand-200 via-brand-400 to-brand-200 bg-clip-text text-transparent bg-[length:200%_100%]"
       animate={{ backgroundPosition: ["0% 0%", "200% 0%"] }}
       transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
     >
@@ -94,7 +94,7 @@ export function FloatingParticles() {
       {particles.map((p) => (
         <motion.div
           key={p.id}
-          className="absolute rounded-full bg-amber-400/20"
+          className="absolute rounded-full bg-brand-400/20"
           style={{
             left: `${p.x}%`,
             top: `${p.y}%`,

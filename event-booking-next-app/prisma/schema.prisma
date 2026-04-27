@@ -159,3 +159,36 @@ model HeroCarouselImage {
 
   @@index([order])
 }
+
+model StatItem {
+  id      String  @id @default(cuid())
+  value   Int
+  suffix  String  @default("")
+  label   String
+  order   Int     @default(0)
+  visible Boolean @default(true)
+
+  @@index([order])
+}
+
+model SiteSettings {
+  id               String   @id @default("default")
+  themeMode        String   @default("PRESET")
+  themePreset      String   @default("amber")
+  themePrimaryHex  String?
+  themeAccentHex   String?
+  instagramEnabled Boolean  @default(true)
+  instagramUrl     String?
+  mapsEnabled      Boolean  @default(true)
+  mapsEmbedUrl     String?
+  mapsLinkUrl      String?
+  whatsappEnabled  Boolean  @default(false)
+  whatsappPhone    String?
+  addressLine1     String?
+  addressLine2     String?
+  contactPhone     String?
+  contactEmail     String?
+  aboutBlurb       String?
+  metaDescription  String?
+  updatedAt        DateTime @updatedAt
+}

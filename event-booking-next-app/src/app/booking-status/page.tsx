@@ -230,7 +230,7 @@ function BookingStatusContent() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
       <div className="mb-8 text-center sm:mb-10">
-        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
+        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-brand-600">
           Track Your Request
         </p>
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
@@ -247,12 +247,12 @@ function BookingStatusContent() {
           value={bookingId}
           onChange={(e) => setBookingId(e.target.value)}
           placeholder="e.g. BNQ-2026-0001"
-          className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-3 text-sm font-mono text-gray-900 placeholder-gray-400 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 sm:px-4"
+          className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-3 text-sm font-mono text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 sm:px-4"
         />
         <button
           type="submit"
           disabled={loading || !bookingId.trim()}
-          className="shrink-0 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50 sm:px-6"
+          className="shrink-0 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50 sm:px-6"
         >
           {loading ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent inline-block" />
@@ -288,7 +288,7 @@ function BookingStatusContent() {
                         <div
                           className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
                             isReached
-                              ? "bg-amber-600 text-white"
+                              ? "bg-brand-600 text-white"
                               : "bg-gray-200 text-gray-500"
                           }`}
                         >
@@ -312,7 +312,7 @@ function BookingStatusContent() {
                         </div>
                         <span
                           className={`mt-1 text-[10px] font-medium ${
-                            isReached ? "text-amber-800" : "text-gray-400"
+                            isReached ? "text-brand-800" : "text-gray-400"
                           }`}
                         >
                           {step.label}
@@ -321,7 +321,7 @@ function BookingStatusContent() {
                       {!isLast && (
                         <div
                           className={`mx-1 mt-[15px] h-0.5 flex-1 ${
-                            idx < progressIdx ? "bg-amber-600" : "bg-gray-200"
+                            idx < progressIdx ? "bg-brand-600" : "bg-gray-200"
                           }`}
                         />
                       )}
@@ -369,16 +369,16 @@ function BookingStatusContent() {
 
           {/* Unlock Section (when basic access) */}
           {accessLevel === "basic" && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-6">
+            <div className="rounded-2xl border border-brand-200 bg-brand-50 p-4 sm:p-6">
               <div className="mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5 text-brand-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                <h3 className="text-sm font-semibold text-amber-900">
+                <h3 className="text-sm font-semibold text-brand-900">
                   Unlock Full Access
                 </h3>
               </div>
-              <p className="mb-3 text-xs text-amber-800">
+              <p className="mb-3 text-xs text-brand-800">
                 Enter your secret code to access quotation details, discussion, and bill download.
               </p>
               <form onSubmit={handleUnlock} className="flex gap-2">
@@ -388,12 +388,12 @@ function BookingStatusContent() {
                   onChange={(e) => setSecretCode(e.target.value.toUpperCase())}
                   placeholder="Enter secret code"
                   maxLength={6}
-                  className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2 text-center font-mono text-sm font-bold tracking-widest text-amber-900 placeholder-amber-400 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                  className="flex-1 rounded-lg border border-brand-300 bg-white px-3 py-2 text-center font-mono text-sm font-bold tracking-widest text-brand-900 placeholder-brand-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 />
                 <button
                   type="submit"
                   disabled={unlocking || secretCode.trim().length === 0}
-                  className="rounded-lg bg-amber-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                  className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
                 >
                   {unlocking ? "..." : "Unlock"}
                 </button>
@@ -481,10 +481,10 @@ function BookingStatusContent() {
                           </td>
                         </tr>
                         <tr>
-                          <td colSpan={2} className="px-2 py-1 font-semibold text-amber-800 sm:px-4">
+                          <td colSpan={2} className="px-2 py-1 font-semibold text-brand-800 sm:px-4">
                             Balance
                           </td>
-                          <td className="whitespace-nowrap px-2 py-1 text-right font-bold text-amber-800 sm:px-4">
+                          <td className="whitespace-nowrap px-2 py-1 text-right font-bold text-brand-800 sm:px-4">
                             &#8377;
                             {(
                               fullBooking.quotation.totalAmount -
@@ -543,7 +543,7 @@ function BookingStatusContent() {
                   </div>
                   <div className="flex justify-between border-t border-gray-100 pt-2 text-sm">
                     <span className="font-medium text-gray-700">Balance Due</span>
-                    <span className="font-bold text-amber-800">
+                    <span className="font-bold text-brand-800">
                       &#8377;
                       {(
                         fullBooking.totalAmount -
@@ -587,7 +587,7 @@ function BookingStatusContent() {
                       <div
                         className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
                           c.sender === "CUSTOMER"
-                            ? "bg-amber-600 text-white"
+                            ? "bg-brand-600 text-white"
                             : "bg-white text-gray-800 shadow-sm"
                         }`}
                       >
@@ -616,12 +616,12 @@ function BookingStatusContent() {
                       handleSendComment();
                     }
                   }}
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
                 />
                 <button
                   onClick={handleSendComment}
                   disabled={commentLoading || !commentInput.trim()}
-                  className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                  className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
                 >
                   {commentLoading ? "..." : "Send"}
                 </button>
@@ -658,7 +658,7 @@ export default function BookingStatusPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
         </div>
       }
     >

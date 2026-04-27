@@ -25,6 +25,53 @@ async function main() {
     console.log("HeroSection already exists, skipping");
   }
 
+  const existingSettings = await prisma.siteSettings.findUnique({
+    where: { id: "default" },
+  });
+  if (!existingSettings) {
+    await prisma.siteSettings.create({
+      data: {
+        id: "default",
+        themeMode: "PRESET",
+        themePreset: "amber",
+        instagramEnabled: true,
+        instagramUrl: "https://www.instagram.com/arbanquets",
+        mapsEnabled: true,
+        mapsEmbedUrl: `https://maps.google.com/maps?q=${encodeURIComponent(
+          `${APP_NAME} Tolichowki Hyderabad`
+        )}&t=&z=15&ie=UTF8&iwloc=&output=embed`,
+        mapsLinkUrl: "https://maps.app.goo.gl/kqXpY5EQDHS1eNVN8",
+        whatsappEnabled: false,
+        whatsappPhone: null,
+        addressLine1: "9-4-86/227, AR Center, 5th & 6th Floor",
+        addressLine2: "Tolichowki Road, Hyderabad, Telangana 500008",
+        contactPhone: "+91 70757 51754",
+        contactEmail: "info@arbanquet.com",
+        aboutBlurb:
+          "Hyderabad's premier banquet hall for weddings, receptions, engagements, and celebrations. Elegant interiors, exceptional catering, and world-class service on the 5th & 6th floors of AR Center, Tolichowki.",
+        metaDescription: `${APP_NAME} \u2014 Hyderabad's premier banquet hall for weddings, nikah, receptions, engagements, corporate events, and celebrations. Accommodating up to 600 guests with in-house catering, DJ, and d\u00e9cor.`,
+      },
+    });
+    console.log("Seeded SiteSettings");
+  } else {
+    console.log("SiteSettings already exists, skipping");
+  }
+
+  const statCount = await prisma.statItem.count();
+  if (statCount === 0) {
+    await prisma.statItem.createMany({
+      data: [
+        { value: 600, suffix: "+", label: "Guest Capacity", order: 1 },
+        { value: 500, suffix: "+", label: "Events Hosted", order: 2 },
+        { value: 2, suffix: "", label: "Banquet Floors", order: 3 },
+        { value: 10, suffix: "+", label: "Years Experience", order: 4 },
+      ],
+    });
+    console.log("Seeded 4 StatItems");
+  } else {
+    console.log(`${statCount} StatItems already exist, skipping`);
+  }
+
   const serviceCount = await prisma.serviceItem.count();
   if (serviceCount === 0) {
     await prisma.serviceItem.createMany({

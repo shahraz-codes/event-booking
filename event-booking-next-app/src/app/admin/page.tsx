@@ -534,7 +534,7 @@ function AdminPageContent() {
                   />
                 </svg>
                 <span>Filter</span>
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-900">
                   {TABS.find((t) => t.key === activeTab)?.label ?? "All"}
                 </span>
               </span>
@@ -559,7 +559,7 @@ function AdminPageContent() {
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     activeTab === tab.key
-                      ? "bg-white text-amber-900 shadow-sm"
+                      ? "bg-white text-brand-900 shadow-sm"
                       : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
@@ -614,14 +614,14 @@ function AdminPageContent() {
                       }}
                       className={`flex items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
                         activeTab === tab.key
-                          ? "bg-amber-50 text-amber-900"
+                          ? "bg-brand-50 text-brand-900"
                           : "text-gray-700 hover:bg-gray-50"
                       }`}
                     >
                       <span>{tab.label}</span>
                       {activeTab === tab.key && (
                         <svg
-                          className="h-5 w-5 text-amber-700"
+                          className="h-5 w-5 text-brand-700"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -660,7 +660,7 @@ function AdminPageContent() {
                   <select
                     value={pageSize}
                     onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
-                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 sm:text-sm"
+                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 sm:text-sm"
                   >
                     {[5, 10, 20, 50].map((n) => (
                       <option key={n} value={n}>
@@ -693,7 +693,7 @@ function AdminPageContent() {
 
                 <span className="text-xs font-medium text-gray-700 sm:text-sm">
                   Page{" "}
-                  <span className="font-semibold text-amber-900">{page}</span>{" "}
+                  <span className="font-semibold text-brand-900">{page}</span>{" "}
                   of <span className="font-semibold text-gray-900">{totalPages}</span>
                 </span>
 
@@ -722,7 +722,7 @@ function AdminPageContent() {
           {/* Booking Cards */}
           {loading ? (
             <div className="flex h-48 items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
             </div>
           ) : bookings.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-500">
@@ -737,7 +737,7 @@ function AdminPageContent() {
                 >
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <span className="font-mono text-sm font-semibold text-amber-800">
+                      <span className="font-mono text-sm font-semibold text-brand-800">
                         {b.bookingId}
                       </span>
                       <h3 className="text-lg font-semibold text-gray-900">
@@ -1093,7 +1093,7 @@ function AdminPageContent() {
                           expandedDiscussion === b.id ? null : b.id
                         )
                       }
-                      className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-amber-800 transition-colors"
+                      className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-brand-800 transition-colors"
                     >
                       <svg
                         className="h-4 w-4"
@@ -1110,7 +1110,7 @@ function AdminPageContent() {
                       </svg>
                       Discussion
                       {b.comments.length > 0 && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-800">
                           {b.comments.length}
                         </span>
                       )}
@@ -1145,7 +1145,7 @@ function AdminPageContent() {
                                 <div
                                   className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
                                     c.sender === "ADMIN"
-                                      ? "bg-amber-600 text-white"
+                                      ? "bg-brand-600 text-white"
                                       : "bg-white text-gray-800 shadow-sm"
                                   }`}
                                 >
@@ -1186,7 +1186,7 @@ function AdminPageContent() {
                                 handleSendComment(b.id);
                               }
                             }}
-                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
                           />
                           <button
                             onClick={() => handleSendComment(b.id)}
@@ -1194,7 +1194,7 @@ function AdminPageContent() {
                               commentLoading === b.id ||
                               !commentInput[b.id]?.trim()
                             }
-                            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
                           >
                             {commentLoading === b.id ? "..." : "Send"}
                           </button>
@@ -1338,7 +1338,7 @@ function AdminPageContent() {
                                   [b.id]: e.target.value,
                                 })
                               }
-                              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
                             />
                           )}
                         </div>
@@ -1394,19 +1394,19 @@ function AdminPageContent() {
                 value={blockDate}
                 onChange={(e) => setBlockDate(e.target.value)}
                 min={format(new Date(), "yyyy-MM-dd")}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
               />
               <input
                 type="text"
                 placeholder="Reason (optional)"
                 value={blockReason}
                 onChange={(e) => setBlockReason(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
               />
               <button
                 type="submit"
                 disabled={!blockDate || blockLoading}
-                className="w-full rounded-lg bg-amber-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                className="w-full rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
               >
                 {blockLoading ? "Blocking..." : "Block Date"}
               </button>

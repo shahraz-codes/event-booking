@@ -107,7 +107,7 @@ export default function BookingPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Booking ID</span>
-                <span className="font-mono font-semibold text-amber-800">
+                <span className="font-mono font-semibold text-brand-800">
                   {result.bookingId}
                 </span>
               </div>
@@ -121,22 +121,22 @@ export default function BookingPage() {
           </div>
 
           {/* Secret Code Display */}
-          <div className="mb-6 rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
+          <div className="mb-6 rounded-xl border-2 border-brand-300 bg-brand-50 p-4">
             <div className="mb-2 flex items-center justify-center gap-2">
-              <svg className="h-5 w-5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 text-brand-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <span className="text-sm font-semibold text-amber-900">
+              <span className="text-sm font-semibold text-brand-900">
                 Your Secret Code
               </span>
             </div>
             <div className="flex items-center justify-center gap-2">
-              <span className="rounded-lg bg-white px-4 py-2 font-mono text-2xl font-bold tracking-widest text-amber-800 shadow-sm">
+              <span className="rounded-lg bg-white px-4 py-2 font-mono text-2xl font-bold tracking-widest text-brand-800 shadow-sm">
                 {result.secretCode}
               </span>
               <button
                 onClick={copySecretCode}
-                className="rounded-lg bg-amber-600 p-2 text-white transition-colors hover:bg-amber-700"
+                className="rounded-lg bg-brand-600 p-2 text-white transition-colors hover:bg-brand-700"
                 title="Copy to clipboard"
               >
                 {codeCopied ? (
@@ -150,7 +150,7 @@ export default function BookingPage() {
                 )}
               </button>
             </div>
-            <p className="mt-3 text-xs font-medium text-amber-800">
+            <p className="mt-3 text-xs font-medium text-brand-800">
               Save this code! You&apos;ll need it to access your quotation, discussion, and bill.
             </p>
           </div>
@@ -161,7 +161,7 @@ export default function BookingPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
               href={`/booking-status?id=${result.bookingId}`}
-              className="rounded-xl bg-amber-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 transition-colors"
+              className="rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
             >
               Track Status
             </Link>
@@ -190,7 +190,7 @@ export default function BookingPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
       <div className="mb-8 text-center sm:mb-10">
-        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
+        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-brand-600">
           Reserve Your Date
         </p>
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
@@ -209,7 +209,7 @@ export default function BookingPage() {
           </h2>
           {calendarLoading ? (
             <div className="flex h-80 items-center justify-center rounded-xl border border-gray-200 bg-white">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
             </div>
           ) : (
             <Calendar
@@ -236,7 +236,7 @@ export default function BookingPage() {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="Your full name"
               />
             </div>
@@ -251,7 +251,7 @@ export default function BookingPage() {
                 required
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="e.g. +91 98765 43210"
               />
             </div>
@@ -265,7 +265,7 @@ export default function BookingPage() {
                 required
                 value={formData.eventType}
                 onChange={(e) => setFormData({ ...formData, eventType: e.target.value })}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
               >
                 <option value="">Select event type</option>
                 {EVENT_TYPES.map((t) => (
@@ -290,7 +290,7 @@ export default function BookingPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, numberOfAttendees: e.target.value })
                 }
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="Expected number of guests"
               />
             </div>
@@ -318,7 +318,7 @@ export default function BookingPage() {
                 rows={3}
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="Any special requirements..."
               />
             </div>
@@ -332,7 +332,7 @@ export default function BookingPage() {
             <button
               type="submit"
               disabled={submitting || !selectedDate}
-              className="w-full rounded-xl bg-amber-600 py-3.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-amber-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-xl bg-brand-600 py-3.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-brand-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">

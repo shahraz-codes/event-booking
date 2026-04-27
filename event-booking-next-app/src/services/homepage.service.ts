@@ -240,6 +240,53 @@ export async function deleteServiceItem(id: string) {
   return prisma.serviceItem.delete({ where: { id } });
 }
 
+// ── Stats ───────────────────────────────────────────────────────────
+
+export async function getVisibleStatItems() {
+  return prisma.statItem.findMany({
+    where: { visible: true },
+    orderBy: { order: "asc" },
+  });
+}
+
+export async function getAllStatItems() {
+  return prisma.statItem.findMany({ orderBy: { order: "asc" } });
+}
+
+export async function createStatItem(data: {
+  value: number;
+  suffix?: string;
+  label: string;
+  order?: number;
+}) {
+  const maxOrder = await prisma.statItem.aggregate({ _max: { order: true } });
+  return prisma.statItem.create({
+    data: {
+      value: data.value,
+      suffix: data.suffix ?? "",
+      label: data.label,
+      order: data.order ?? (maxOrder._max.order ?? 0) + 1,
+    },
+  });
+}
+
+export async function updateStatItem(
+  id: string,
+  data: {
+    value?: number;
+    suffix?: string;
+    label?: string;
+    order?: number;
+    visible?: boolean;
+  }
+) {
+  return prisma.statItem.update({ where: { id }, data });
+}
+
+export async function deleteStatItem(id: string) {
+  return prisma.statItem.delete({ where: { id } });
+}
+
 // ── Hero Carousel ────────────────────────────────────────────────────
 
 export async function getVisibleCarouselImages() {

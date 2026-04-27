@@ -8,6 +8,14 @@ import Link from "next/link";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
 import { APP_NAME } from "@/lib/config";
+import {
+  PRESET_KEYS,
+  PRESETS,
+  derivePaletteFromHex,
+  isValidHex,
+  normaliseHex,
+  type Palette,
+} from "@/lib/palette";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -62,6 +70,15 @@ interface ServiceItem {
   visible: boolean;
 }
 
+interface StatItem {
+  id: string;
+  value: number;
+  suffix: string;
+  label: string;
+  order: number;
+  visible: boolean;
+}
+
 interface CarouselImage {
   id: string;
   imageUrl: string;
@@ -72,10 +89,19 @@ interface CarouselImage {
   mediaFile: MediaFile | null;
 }
 
-type Tab = "media" | "hero" | "carousel" | "gallery" | "services";
+type Tab =
+  | "media"
+  | "hero"
+  | "carousel"
+  | "gallery"
+  | "services"
+  | "stats"
+  | "colors"
+  | "social"
+  | "contact";
 
 const GRADIENT_OPTIONS = [
-  { value: "from-amber-600 to-amber-800", label: "Amber" },
+  { value: "from-brand-600 to-brand-800", label: "Brand" },
   { value: "from-emerald-600 to-emerald-800", label: "Emerald" },
   { value: "from-rose-600 to-rose-800", label: "Rose" },
   { value: "from-violet-600 to-violet-800", label: "Violet" },
@@ -110,6 +136,10 @@ const TAB_LABELS: Record<Tab, string> = {
   carousel: "Carousel",
   gallery: "Gallery",
   services: "Services",
+  stats: "Stats",
+  colors: "Colors",
+  social: "Social Apps",
+  contact: "Contact & About",
 };
 
 export default function AdminHomepagePage() {
@@ -122,7 +152,17 @@ export default function AdminHomepagePage() {
   );
 }
 
-const ALL_TABS: Tab[] = ["media", "hero", "carousel", "gallery", "services"];
+const ALL_TABS: Tab[] = [
+  "media",
+  "hero",
+  "carousel",
+  "gallery",
+  "services",
+  "stats",
+  "colors",
+  "social",
+  "contact",
+];
 
 function AdminHomepageContent() {
   const router = useRouter();
@@ -178,7 +218,7 @@ function AdminHomepageContent() {
           onClick={goPrev}
           disabled={currentIndex === 0}
           aria-label="Previous section"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-amber-900 shadow-sm transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 disabled:shadow-none"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-brand-900 shadow-sm transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 disabled:shadow-none"
         >
           <svg
             className="h-5 w-5"
@@ -191,7 +231,7 @@ function AdminHomepageContent() {
           </svg>
         </button>
         <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <span className="text-sm font-semibold text-amber-900">
+          <span className="text-sm font-semibold text-brand-900">
             {TAB_LABELS[activeTab]}
           </span>
           <span className="text-[11px] font-medium text-gray-500">
@@ -203,7 +243,7 @@ function AdminHomepageContent() {
           onClick={goNext}
           disabled={currentIndex === ALL_TABS.length - 1}
           aria-label="Next section"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-amber-900 shadow-sm transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 disabled:shadow-none"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-brand-900 shadow-sm transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300 disabled:shadow-none"
         >
           <svg
             className="h-5 w-5"
@@ -226,7 +266,7 @@ function AdminHomepageContent() {
               onClick={() => setActiveTab(tab)}
               className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab
-                  ? "bg-white text-amber-900 shadow-sm"
+                  ? "bg-white text-brand-900 shadow-sm"
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
@@ -242,6 +282,10 @@ function AdminHomepageContent() {
       {activeTab === "carousel" && <CarouselEditor />}
       {activeTab === "gallery" && <GalleryEditor />}
       {activeTab === "services" && <ServicesEditor />}
+      {activeTab === "stats" && <StatsEditor />}
+      {activeTab === "colors" && <ColorsEditor />}
+      {activeTab === "social" && <SocialEditor />}
+      {activeTab === "contact" && <ContactEditor />}
     </div>
   );
 }
@@ -426,7 +470,7 @@ function MediaLibraryEditor() {
               usedPercent > 90
                 ? "bg-red-500"
                 : usedPercent > 70
-                  ? "bg-amber-500"
+                  ? "bg-brand-500"
                   : "bg-emerald-500"
             }`}
             style={{ width: `${usedPercent}%` }}
@@ -486,7 +530,7 @@ function MediaLibraryEditor() {
                   type="button"
                   onClick={() => open()}
                   disabled={uploading}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-amber-400 hover:text-amber-700 disabled:pointer-events-none disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-6 py-8 text-sm font-medium text-gray-500 transition-colors hover:border-brand-400 hover:text-brand-700 disabled:pointer-events-none disabled:opacity-50"
                 >
                   <svg
                     className="h-6 w-6"
@@ -509,7 +553,7 @@ function MediaLibraryEditor() {
               <div className="space-y-1">
                 <div className="h-2 overflow-hidden rounded-full bg-gray-100">
                   <div
-                    className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                    className="h-full rounded-full bg-brand-500 transition-all duration-500"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
@@ -544,7 +588,7 @@ function MediaLibraryEditor() {
               placeholder="Search by file name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 shadow-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 shadow-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
             />
           </div>
           <div className="flex gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
@@ -554,7 +598,7 @@ function MediaLibraryEditor() {
                 onClick={() => setTypeFilter(type)}
                 className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                   typeFilter === type
-                    ? "bg-amber-100 text-amber-700"
+                    ? "bg-brand-100 text-brand-700"
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
@@ -718,7 +762,7 @@ function MediaPickerModal({
                 onClick={() => setTypeFilter(t)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
                   typeFilter === t
-                    ? "bg-amber-100 text-amber-800"
+                    ? "bg-brand-100 text-brand-800"
                     : "text-gray-500 hover:bg-gray-100"
                 }`}
               >
@@ -746,13 +790,13 @@ function MediaPickerModal({
                     onSelect(file);
                     onClose();
                   }}
-                  className="group overflow-hidden rounded-xl border border-gray-200 text-left transition-all hover:border-amber-400 hover:shadow-md"
+                  className="group overflow-hidden rounded-xl border border-gray-200 text-left transition-all hover:border-brand-400 hover:shadow-md"
                 >
                   <div className="relative aspect-video bg-gray-50">
                     {file.resourceType === "video" ? (
                       <div className="flex h-full items-center justify-center">
                         <svg
-                          className="h-8 w-8 text-gray-300 group-hover:text-amber-400"
+                          className="h-8 w-8 text-gray-300 group-hover:text-brand-400"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -890,7 +934,7 @@ function HeroEditor() {
                   setHero({ ...hero, description: e.target.value })
                 }
                 rows={4}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
                 placeholder="Your premier destination for..."
               />
             </div>
@@ -942,7 +986,7 @@ function HeroEditor() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-amber-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+          className="rounded-lg bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save Hero Section"}
         </button>
@@ -1053,7 +1097,7 @@ function CarouselEditor() {
             setShowAddForm(true);
             setEditingId(null);
           }}
-          className="self-start rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 sm:self-auto"
+          className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 sm:self-auto"
         >
           Add Image
         </button>
@@ -1214,7 +1258,7 @@ function CarouselImageForm({
     <>
       <form
         onSubmit={handleSubmit}
-        className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm"
+        className="rounded-xl border border-brand-200 bg-brand-50/50 p-5 shadow-sm"
       >
         <h3 className="mb-4 font-semibold text-gray-900">
           {item ? "Edit Carousel Image" : "New Carousel Image"}
@@ -1255,7 +1299,7 @@ function CarouselImageForm({
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
           >
             {saving ? "Saving..." : item ? "Update" : "Add"}
           </button>
@@ -1358,7 +1402,7 @@ function GalleryEditor() {
             setShowAddForm(true);
             setEditingId(null);
           }}
-          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
         >
           Add Item
         </button>
@@ -1472,7 +1516,7 @@ function GalleryItemForm({
     item?.mediaFile ?? null
   );
   const [gradient, setGradient] = useState(
-    item?.gradient ?? "from-amber-600 to-amber-800"
+    item?.gradient ?? "from-brand-600 to-brand-800"
   );
   const [saving, setSaving] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -1527,7 +1571,7 @@ function GalleryItemForm({
     <>
       <form
         onSubmit={handleSubmit}
-        className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm"
+        className="rounded-xl border border-brand-200 bg-brand-50/50 p-5 shadow-sm"
       >
         <h3 className="mb-4 font-semibold text-gray-900">
           {item ? "Edit Gallery Item" : "New Gallery Item"}
@@ -1554,7 +1598,7 @@ function GalleryItemForm({
             <select
               value={gradient}
               onChange={(e) => setGradient(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
             >
               {GRADIENT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -1592,7 +1636,7 @@ function GalleryItemForm({
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
           >
             {saving ? "Saving..." : item ? "Update" : "Add"}
           </button>
@@ -1695,7 +1739,7 @@ function ServicesEditor() {
             setShowAddForm(true);
             setEditingId(null);
           }}
-          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
         >
           Add Service
         </button>
@@ -1738,7 +1782,7 @@ function ServicesEditor() {
                 }`}
               >
                 <div className="flex items-center gap-3 sm:contents">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
                     <svg
                       className="h-6 w-6"
                       fill="none"
@@ -1843,7 +1887,7 @@ function ServiceItemForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm"
+      className="rounded-xl border border-brand-200 bg-brand-50/50 p-5 shadow-sm"
     >
       <h3 className="mb-4 font-semibold text-gray-900">
         {item ? "Edit Service" : "New Service"}
@@ -1877,7 +1921,7 @@ function ServiceItemForm({
                 onClick={() => setIconSvg(path)}
                 className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
                   iconSvg === path
-                    ? "border-amber-500 bg-amber-100 text-amber-700"
+                    ? "border-brand-500 bg-brand-100 text-brand-700"
                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                 }`}
                 title={name}
@@ -1904,7 +1948,7 @@ function ServiceItemForm({
               value={iconSvg}
               onChange={(e) => setIconSvg(e.target.value)}
               placeholder="Or paste custom SVG path data (d attribute)"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-600 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-600 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
             />
           </div>
         </div>
@@ -1913,7 +1957,309 @@ function ServiceItemForm({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : item ? "Update" : "Add"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ── Stats Editor ────────────────────────────────────────────────────
+
+function StatsEditor() {
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
+  const [items, setItems] = useState<StatItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const fetchItems = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/homepage/stats");
+      const json = await res.json();
+      if (json.success) setItems(json.data);
+    } catch {
+      toast("error", "Failed to load stats");
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
+
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete stat",
+      message: "This stat will be permanently removed from the homepage.",
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch("/api/admin/homepage/stats", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast("success", "Stat deleted");
+        fetchItems();
+      } else {
+        toast("error", json.error || "Failed to delete");
+      }
+    } catch {
+      toast("error", "Failed to delete stat");
+    }
+  };
+
+  const handleToggleVisibility = async (item: StatItem) => {
+    try {
+      const res = await fetch("/api/admin/homepage/stats", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, visible: !item.visible }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        fetchItems();
+      } else {
+        toast("error", json.error || "Failed to update");
+      }
+    } catch {
+      toast("error", "Failed to update stat");
+    }
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Stats</h2>
+          <p className="text-sm text-gray-600">
+            Numbers displayed on the homepage stats strip (e.g. guest capacity,
+            events hosted).
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setShowAddForm(true);
+            setEditingId(null);
+          }}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+        >
+          Add Stat
+        </button>
+      </div>
+
+      {showAddForm && (
+        <StatItemForm
+          onSave={() => {
+            setShowAddForm(false);
+            fetchItems();
+            toast("success", "Stat added");
+          }}
+          onCancel={() => setShowAddForm(false)}
+        />
+      )}
+
+      {items.length === 0 && !showAddForm ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-500">
+          No stats yet. Click &quot;Add Stat&quot; to create one.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) =>
+            editingId === item.id ? (
+              <StatItemForm
+                key={item.id}
+                item={item}
+                onSave={() => {
+                  setEditingId(null);
+                  fetchItems();
+                  toast("success", "Stat updated");
+                }}
+                onCancel={() => setEditingId(null)}
+              />
+            ) : (
+              <div
+                key={item.id}
+                className={`flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:gap-4 ${
+                  item.visible ? "border-gray-200" : "border-gray-200 opacity-60"
+                }`}
+              >
+                <div className="flex items-center gap-3 sm:contents">
+                  <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-base font-bold text-brand-700">
+                    {item.value}
+                    {item.suffix}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-gray-900">
+                      {item.label}
+                    </h3>
+                    <p className="text-xs text-gray-500">Order: {item.order}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                  <button
+                    onClick={() => handleToggleVisibility(item)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                      item.visible
+                        ? "bg-green-50 text-green-700 hover:bg-green-100"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    {item.visible ? "Visible" : "Hidden"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingId(item.id);
+                      setShowAddForm(false);
+                    }}
+                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatItemForm({
+  item,
+  onSave,
+  onCancel,
+}: {
+  item?: StatItem;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const { toast } = useToast();
+  const [value, setValue] = useState<string>(
+    item?.value !== undefined ? String(item.value) : ""
+  );
+  const [suffix, setSuffix] = useState(item?.suffix ?? "");
+  const [label, setLabel] = useState(item?.label ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+      toast("error", "Value must be a number");
+      return;
+    }
+    if (!label.trim()) {
+      toast("error", "Label is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const method = item ? "PATCH" : "POST";
+      const body = item
+        ? {
+            id: item.id,
+            value: Math.trunc(numericValue),
+            suffix,
+            label: label.trim(),
+          }
+        : {
+            value: Math.trunc(numericValue),
+            suffix,
+            label: label.trim(),
+          };
+
+      const res = await fetch("/api/admin/homepage/stats", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (json.success) {
+        onSave();
+      } else {
+        toast("error", json.error || "Failed to save");
+      }
+    } catch {
+      toast("error", "Failed to save stat");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-xl border border-brand-200 bg-brand-50/50 p-5 shadow-sm"
+    >
+      <h3 className="mb-4 font-semibold text-gray-900">
+        {item ? "Edit Stat" : "New Stat"}
+      </h3>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            Value
+          </label>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="600"
+            required
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            Suffix
+          </label>
+          <input
+            type="text"
+            value={suffix}
+            onChange={(e) => setSuffix(e.target.value)}
+            placeholder="+"
+            maxLength={4}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
+          />
+        </div>
+        <Field
+          label="Label"
+          value={label}
+          onChange={setLabel}
+          placeholder="Guest Capacity"
+          required
+        />
+      </div>
+      <div className="mt-4 flex gap-2">
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
         >
           {saving ? "Saving..." : item ? "Update" : "Add"}
         </button>
@@ -1955,8 +2301,82 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
       />
+    </div>
+  );
+}
+
+// India-only phone input: locked "+91" prefix + 10-digit numeric input.
+// `storageFormat` controls the canonical value held in state:
+//   - "digits" → "91XXXXXXXXXX"   (used for WhatsApp, where wa.me wants digits only)
+//   - "pretty" → "+91 XXXXX XXXXX" (used for the contact phone shown in the footer)
+function PhoneField({
+  label,
+  value,
+  onChange,
+  required,
+  storageFormat = "digits",
+}: {
+  label: string;
+  value: string | null;
+  onChange: (v: string | null) => void;
+  required?: boolean;
+  storageFormat?: "digits" | "pretty";
+}) {
+  const allDigits = (value ?? "").replace(/\D+/g, "");
+  let local = "";
+  if (allDigits.length === 12 && allDigits.startsWith("91")) {
+    local = allDigits.slice(2);
+  } else if (allDigits.length <= 10) {
+    local = allDigits;
+  } else {
+    local = allDigits.slice(-10);
+  }
+
+  const handleChange = (next: string) => {
+    const digits = next.replace(/\D+/g, "").slice(0, 10);
+    if (digits.length === 0) {
+      onChange(null);
+      return;
+    }
+    if (storageFormat === "digits") {
+      onChange(`91${digits}`);
+      return;
+    }
+    const formatted =
+      digits.length === 10
+        ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`
+        : `+91 ${digits}`;
+    onChange(formatted);
+  };
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm font-medium text-gray-700">
+        {label}
+      </label>
+      <div className="flex items-stretch overflow-hidden rounded-lg border border-gray-300 transition-colors focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500/20">
+        <span
+          aria-hidden="true"
+          className="flex select-none items-center border-r border-gray-300 bg-gray-50 px-3 text-sm font-medium text-gray-600"
+        >
+          +91
+        </span>
+        <input
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          value={local}
+          onChange={(e) => handleChange(e.target.value)}
+          placeholder="9876543210"
+          maxLength={10}
+          pattern="\d{10}"
+          required={required}
+          aria-label={label}
+          className="w-full bg-transparent px-3 py-2 text-sm tracking-wider outline-none"
+        />
+      </div>
     </div>
   );
 }
@@ -1964,7 +2384,822 @@ function Field({
 function Spinner() {
   return (
     <div className="flex h-48 items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
+    </div>
+  );
+}
+
+// ── Site Settings (Colors + Social) ─────────────────────────────────
+
+interface SiteSettingsData {
+  themeMode: "PRESET" | "CUSTOM";
+  themePreset: string;
+  themePrimaryHex: string | null;
+  themeAccentHex: string | null;
+  instagramEnabled: boolean;
+  instagramUrl: string | null;
+  mapsEnabled: boolean;
+  mapsEmbedUrl: string | null;
+  mapsLinkUrl: string | null;
+  whatsappEnabled: boolean;
+  whatsappPhone: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  aboutBlurb: string | null;
+  metaDescription: string | null;
+}
+
+const DEFAULT_SETTINGS: SiteSettingsData = {
+  themeMode: "PRESET",
+  themePreset: "amber",
+  themePrimaryHex: null,
+  themeAccentHex: null,
+  instagramEnabled: true,
+  instagramUrl: null,
+  mapsEnabled: true,
+  mapsEmbedUrl: null,
+  mapsLinkUrl: null,
+  whatsappEnabled: false,
+  whatsappPhone: null,
+  addressLine1: null,
+  addressLine2: null,
+  contactPhone: null,
+  contactEmail: null,
+  aboutBlurb: null,
+  metaDescription: null,
+};
+
+function useSiteSettings() {
+  const { toast } = useToast();
+  const [settings, setSettings] = useState<SiteSettingsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/site-settings");
+      const json = await res.json();
+      if (json.success && json.data) {
+        setSettings({
+          themeMode:
+            json.data.themeMode === "CUSTOM" ? "CUSTOM" : "PRESET",
+          themePreset: json.data.themePreset ?? "amber",
+          themePrimaryHex: json.data.themePrimaryHex ?? null,
+          themeAccentHex: json.data.themeAccentHex ?? null,
+          instagramEnabled: !!json.data.instagramEnabled,
+          instagramUrl: json.data.instagramUrl ?? null,
+          mapsEnabled: !!json.data.mapsEnabled,
+          mapsEmbedUrl: json.data.mapsEmbedUrl ?? null,
+          mapsLinkUrl: json.data.mapsLinkUrl ?? null,
+          whatsappEnabled: !!json.data.whatsappEnabled,
+          whatsappPhone: json.data.whatsappPhone ?? null,
+          addressLine1: json.data.addressLine1 ?? null,
+          addressLine2: json.data.addressLine2 ?? null,
+          contactPhone: json.data.contactPhone ?? null,
+          contactEmail: json.data.contactEmail ?? null,
+          aboutBlurb: json.data.aboutBlurb ?? null,
+          metaDescription: json.data.metaDescription ?? null,
+        });
+      } else {
+        setSettings({ ...DEFAULT_SETTINGS });
+      }
+    } catch {
+      toast("error", "Failed to load site settings");
+      setSettings({ ...DEFAULT_SETTINGS });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { settings, setSettings, loading, refetch };
+}
+
+async function saveSettings(payload: SiteSettingsData) {
+  const res = await fetch("/api/admin/site-settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return (await res.json()) as { success: boolean; error?: string };
+}
+
+// ── Colors Editor ───────────────────────────────────────────────────
+
+function ColorsEditor() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { settings, setSettings, loading } = useSiteSettings();
+  const [saving, setSaving] = useState(false);
+
+  if (loading || !settings) return <Spinner />;
+
+  const update = <K extends keyof SiteSettingsData>(
+    key: K,
+    value: SiteSettingsData[K]
+  ) => setSettings({ ...settings, [key]: value });
+
+  const previewPalette: Palette =
+    settings.themeMode === "CUSTOM" &&
+    settings.themePrimaryHex &&
+    isValidHex(settings.themePrimaryHex)
+      ? derivePaletteFromHex(settings.themePrimaryHex)
+      : PRESETS[
+          (PRESET_KEYS as readonly string[]).includes(settings.themePreset)
+            ? (settings.themePreset as (typeof PRESET_KEYS)[number])
+            : "amber"
+        ];
+
+  const previewAccent: Palette | null =
+    settings.themeAccentHex && isValidHex(settings.themeAccentHex)
+      ? derivePaletteFromHex(settings.themeAccentHex)
+      : null;
+
+  const previewStyle = {
+    "--brand-50": previewPalette["50"],
+    "--brand-100": previewPalette["100"],
+    "--brand-200": previewPalette["200"],
+    "--brand-300": previewPalette["300"],
+    "--brand-400": previewPalette["400"],
+    "--brand-500": previewPalette["500"],
+    "--brand-600": previewPalette["600"],
+    "--brand-700": previewPalette["700"],
+    "--brand-800": previewPalette["800"],
+    "--brand-900": previewPalette["900"],
+    "--brand-950": previewPalette["950"],
+    "--accent-500": (previewAccent ?? previewPalette)["500"],
+    "--accent-700": (previewAccent ?? previewPalette)["700"],
+  } as React.CSSProperties;
+
+  const handleSave = async () => {
+    if (
+      settings.themeMode === "CUSTOM" &&
+      (!settings.themePrimaryHex || !isValidHex(settings.themePrimaryHex))
+    ) {
+      toast("error", "Please pick a valid primary colour");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await saveSettings(settings);
+      if (res.success) {
+        toast("success", "Theme saved");
+        router.refresh();
+      } else {
+        toast("error", res.error || "Failed to save theme");
+      }
+    } catch {
+      toast("error", "Failed to save theme");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="mb-1 text-lg font-semibold text-gray-900">Brand Colour</h2>
+        <p className="mb-5 text-sm text-gray-600">
+          Pick a curated preset or define your own primary colour. Selected colours apply across every page.
+        </p>
+
+        <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-1">
+          {(["PRESET", "CUSTOM"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => update("themeMode", mode)}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                settings.themeMode === mode
+                  ? "bg-white text-brand-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {mode === "PRESET" ? "Preset" : "Custom"}
+            </button>
+          ))}
+        </div>
+
+        {settings.themeMode === "PRESET" ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {PRESET_KEYS.map((key) => {
+              const palette = PRESETS[key];
+              const selected = settings.themePreset === key;
+              return (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => update("themePreset", key)}
+                  className={`group rounded-xl border p-3 text-left transition-all ${
+                    selected
+                      ? "border-brand-500 ring-2 ring-brand-500/30"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="mb-2 flex h-10 overflow-hidden rounded-md">
+                    <span
+                      className="flex-1"
+                      style={{ background: palette["300"] }}
+                    />
+                    <span
+                      className="flex-1"
+                      style={{ background: palette["500"] }}
+                    />
+                    <span
+                      className="flex-1"
+                      style={{ background: palette["700"] }}
+                    />
+                    <span
+                      className="flex-1"
+                      style={{ background: palette["900"] }}
+                    />
+                  </div>
+                  <p className="text-sm font-medium capitalize text-gray-900">
+                    {key}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <CustomColourField
+              label="Primary colour"
+              hint="Used for buttons, links, brand surfaces. Shades 50–950 are derived automatically."
+              value={settings.themePrimaryHex}
+              onChange={(v) => update("themePrimaryHex", v)}
+              defaultHex="#b45309"
+            />
+            <CustomColourField
+              label="Accent colour (optional)"
+              hint="Used for highlights/CTAs. Leave empty to fall back to the brand colour."
+              value={settings.themeAccentHex}
+              onChange={(v) => update("themeAccentHex", v)}
+              allowClear
+              defaultHex="#d97706"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Preview */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Preview</h2>
+        <div
+          style={previewStyle}
+          className="rounded-2xl border border-brand-100 bg-brand-50 p-5 sm:p-6"
+        >
+          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-brand-600">
+            Sample section
+          </p>
+          <h3 className="mb-3 text-2xl font-bold text-brand-900">
+            {APP_NAME}
+          </h3>
+          <p className="mb-4 max-w-md text-sm text-brand-800/80">
+            This is what your buttons, badges, and surfaces look like with the selected palette.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow transition-colors hover:bg-brand-700"
+            >
+              Primary action
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-brand-300 bg-white px-4 py-2 text-sm font-semibold text-brand-800 transition-colors hover:bg-brand-50"
+            >
+              Secondary
+            </button>
+            <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-800">
+              Badge
+            </span>
+            <span
+              className="inline-block h-10 w-32 rounded-lg bg-gradient-to-r from-brand-600 to-brand-900"
+              aria-hidden="true"
+            />
+          </div>
+          <div className="mt-4 grid grid-cols-11 gap-1">
+            {(
+              ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"] as const
+            ).map((step) => (
+              <div key={step} className="flex flex-col items-center gap-1">
+                <span
+                  className="h-8 w-full rounded"
+                  style={{ background: previewPalette[step] }}
+                />
+                <span className="text-[10px] text-brand-800/70">{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={handleSave}
+          className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save Theme"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CustomColourField({
+  label,
+  hint,
+  value,
+  onChange,
+  allowClear,
+  defaultHex,
+}: {
+  label: string;
+  hint?: string;
+  value: string | null;
+  onChange: (v: string | null) => void;
+  allowClear?: boolean;
+  defaultHex: string;
+}) {
+  const [textValue, setTextValue] = useState(value ?? "");
+
+  useEffect(() => {
+    setTextValue(value ?? "");
+  }, [value]);
+
+  const previewHex = value && isValidHex(value) ? normaliseHex(value) : null;
+  const previewPalette: Palette | null = previewHex
+    ? derivePaletteFromHex(previewHex)
+    : null;
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <label className="text-sm font-medium text-gray-700">{label}</label>
+        {allowClear && value && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="text-xs font-medium text-gray-500 hover:text-gray-800"
+          >
+            Use brand colour
+          </button>
+        )}
+      </div>
+      {hint && <p className="mb-3 text-xs text-gray-500">{hint}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          type="color"
+          value={previewHex ?? defaultHex}
+          onChange={(e) => onChange(normaliseHex(e.target.value))}
+          className="h-10 w-14 cursor-pointer rounded-lg border border-gray-300 bg-white p-1"
+          aria-label={`${label} colour picker`}
+        />
+        <input
+          type="text"
+          value={textValue}
+          onChange={(e) => {
+            const v = e.target.value;
+            setTextValue(v);
+            const trimmed = v.trim();
+            if (!trimmed) {
+              if (allowClear) onChange(null);
+              return;
+            }
+            if (isValidHex(trimmed)) onChange(normaliseHex(trimmed));
+          }}
+          placeholder="#b45309"
+          className="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
+        />
+        {previewPalette && (
+          <div className="flex items-center gap-1">
+            {(["50", "300", "500", "700", "900"] as const).map((step) => (
+              <span
+                key={step}
+                className="h-7 w-7 rounded-md border border-black/10"
+                style={{ background: previewPalette[step] }}
+                title={`${step}: ${previewPalette[step]}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Social Apps Editor ──────────────────────────────────────────────
+
+function SocialEditor() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { settings, setSettings, loading } = useSiteSettings();
+  const [saving, setSaving] = useState(false);
+
+  if (loading || !settings) return <Spinner />;
+
+  const update = <K extends keyof SiteSettingsData>(
+    key: K,
+    value: SiteSettingsData[K]
+  ) => setSettings({ ...settings, [key]: value });
+
+  const validate = () => {
+    if (settings.instagramEnabled) {
+      const url = settings.instagramUrl?.trim();
+      if (!url) return "Instagram URL is required when Instagram is enabled";
+      try {
+        new URL(url);
+      } catch {
+        return "Instagram URL must be a valid URL";
+      }
+    }
+    if (settings.mapsEnabled) {
+      const url = settings.mapsEmbedUrl?.trim();
+      if (!url) return "Google Maps embed URL is required when Maps is enabled";
+      try {
+        new URL(url);
+      } catch {
+        return "Google Maps embed URL must be a valid URL";
+      }
+      if (settings.mapsLinkUrl?.trim()) {
+        try {
+          new URL(settings.mapsLinkUrl);
+        } catch {
+          return "Directions URL must be a valid URL";
+        }
+      }
+    }
+    if (settings.whatsappEnabled) {
+      const phone = settings.whatsappPhone?.trim();
+      if (!phone) return "WhatsApp phone number is required when WhatsApp is enabled";
+      if (!/^91\d{10}$/.test(phone))
+        return "WhatsApp phone must be a 10-digit Indian number";
+    }
+    return null;
+  };
+
+  const handleSave = async () => {
+    const err = validate();
+    if (err) {
+      toast("error", err);
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: SiteSettingsData = {
+        ...settings,
+        instagramUrl: settings.instagramUrl?.trim() || null,
+        mapsEmbedUrl: settings.mapsEmbedUrl?.trim() || null,
+        mapsLinkUrl: settings.mapsLinkUrl?.trim() || null,
+        whatsappPhone: settings.whatsappPhone?.trim() || null,
+      };
+      const res = await saveSettings(payload);
+      if (res.success) {
+        toast("success", "Social settings saved");
+        router.refresh();
+      } else {
+        toast("error", res.error || "Failed to save");
+      }
+    } catch {
+      toast("error", "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Instagram */}
+      <SocialCard
+        title="Instagram"
+        description="Show the Instagram highlight section on the homepage and a footer quick-link."
+        enabled={settings.instagramEnabled}
+        onToggle={(v) => update("instagramEnabled", v)}
+      >
+        <Field
+          label="Profile URL"
+          value={settings.instagramUrl ?? ""}
+          onChange={(v) => update("instagramUrl", v)}
+          placeholder="https://www.instagram.com/yourhandle"
+          required
+        />
+      </SocialCard>
+
+      {/* Google Maps */}
+      <SocialCard
+        title="Google Maps"
+        description="Show the location section on the homepage and a footer quick-link."
+        enabled={settings.mapsEnabled}
+        onToggle={(v) => update("mapsEnabled", v)}
+      >
+        <div className="space-y-3">
+          <Field
+            label="Embed URL"
+            value={settings.mapsEmbedUrl ?? ""}
+            onChange={(v) => update("mapsEmbedUrl", v)}
+            placeholder="https://www.google.com/maps/embed?pb=..."
+            required
+          />
+          <p className="-mt-1 text-xs text-gray-500">
+            From Google Maps → Share → Embed a map → copy the <code>src</code> from the iframe.
+          </p>
+          <Field
+            label="Directions URL (optional)"
+            value={settings.mapsLinkUrl ?? ""}
+            onChange={(v) => update("mapsLinkUrl", v)}
+            placeholder="https://maps.app.goo.gl/..."
+          />
+        </div>
+      </SocialCard>
+
+      {/* WhatsApp */}
+      <SocialCard
+        title="WhatsApp Float Button"
+        description="A circular WhatsApp FAB on the homepage that opens a chat with the configured number."
+        enabled={settings.whatsappEnabled}
+        onToggle={(v) => update("whatsappEnabled", v)}
+      >
+        <PhoneField
+          label="Phone number"
+          value={settings.whatsappPhone}
+          onChange={(v) => update("whatsappPhone", v)}
+          storageFormat="digits"
+          required
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Indian mobile number, 10 digits — the +91 country code is added
+          automatically.
+        </p>
+      </SocialCard>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={handleSave}
+          className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save Social Settings"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SocialCard({
+  title,
+  description,
+  enabled,
+  onToggle,
+  children,
+}: {
+  title: string;
+  description: string;
+  enabled: boolean;
+  onToggle: (next: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <p className="mt-1 text-sm text-gray-600">{description}</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          onClick={() => onToggle(!enabled)}
+          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+            enabled ? "bg-brand-600" : "bg-gray-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+              enabled ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+          <span className="sr-only">
+            {enabled ? "Disable" : "Enable"} {title}
+          </span>
+        </button>
+      </div>
+      {enabled && <div>{children}</div>}
+    </div>
+  );
+}
+
+// ── Contact / About Editor ─────────────────────────────────────────
+
+function ContactEditor() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { settings, setSettings, loading } = useSiteSettings();
+  const [saving, setSaving] = useState(false);
+
+  if (loading || !settings) return <Spinner />;
+
+  const update = <K extends keyof SiteSettingsData>(
+    key: K,
+    value: SiteSettingsData[K]
+  ) => setSettings({ ...settings, [key]: value });
+
+  const validate = () => {
+    const email = settings.contactEmail?.trim();
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return "Contact email must be a valid email";
+    }
+    const phone = settings.contactPhone?.trim();
+    if (phone && !/^\+91 \d{5} \d{5}$/.test(phone)) {
+      return "Contact phone must be a 10-digit Indian number";
+    }
+    if (settings.aboutBlurb && settings.aboutBlurb.length > 800) {
+      return "About blurb must be 800 characters or fewer";
+    }
+    if (settings.metaDescription && settings.metaDescription.length > 300) {
+      return "Meta description must be 300 characters or fewer";
+    }
+    return null;
+  };
+
+  const handleSave = async () => {
+    const err = validate();
+    if (err) {
+      toast("error", err);
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: SiteSettingsData = {
+        ...settings,
+        addressLine1: settings.addressLine1?.trim() || null,
+        addressLine2: settings.addressLine2?.trim() || null,
+        contactPhone: settings.contactPhone?.trim() || null,
+        contactEmail: settings.contactEmail?.trim() || null,
+        aboutBlurb: settings.aboutBlurb?.trim() || null,
+        metaDescription: settings.metaDescription?.trim() || null,
+      };
+      const res = await saveSettings(payload);
+      if (res.success) {
+        toast("success", "Contact details saved");
+        router.refresh();
+      } else {
+        toast("error", res.error || "Failed to save");
+      }
+    } catch {
+      toast("error", "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Address</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Used in the homepage location section and the footer contact
+            column. Leave both lines empty to hide the address.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <Field
+            label="Address line 1"
+            value={settings.addressLine1 ?? ""}
+            onChange={(v) => update("addressLine1", v)}
+            placeholder="9-4-86/227, AR Center, 5th & 6th Floor"
+          />
+          <Field
+            label="Address line 2"
+            value={settings.addressLine2 ?? ""}
+            onChange={(v) => update("addressLine2", v)}
+            placeholder="Tolichowki Road, Hyderabad, Telangana 500008"
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Contact details
+          </h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Phone and email shown in the footer contact column. Leave empty
+            to hide.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <PhoneField
+            label="Phone"
+            value={settings.contactPhone}
+            onChange={(v) => update("contactPhone", v)}
+            storageFormat="pretty"
+          />
+          <Field
+            label="Email"
+            value={settings.contactEmail ?? ""}
+            onChange={(v) => update("contactEmail", v)}
+            placeholder="info@arbanquet.com"
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">About</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Short blurb shown in the footer next to the brand name.
+          </p>
+        </div>
+        <TextareaField
+          label="About blurb"
+          value={settings.aboutBlurb ?? ""}
+          onChange={(v) => update("aboutBlurb", v)}
+          placeholder="Hyderabad's premier banquet hall for weddings, receptions, engagements, and celebrations..."
+          rows={4}
+          maxLength={800}
+        />
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">SEO</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Description used as the site&apos;s HTML meta description for
+            search engines and link previews.
+          </p>
+        </div>
+        <TextareaField
+          label="Meta description"
+          value={settings.metaDescription ?? ""}
+          onChange={(v) => update("metaDescription", v)}
+          placeholder="A short, compelling sentence (under 160 characters works best)."
+          rows={3}
+          maxLength={300}
+        />
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={handleSave}
+          className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save Contact Details"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TextareaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 3,
+  maxLength,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+  maxLength?: number;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-end justify-between gap-2">
+        <label className="block text-sm font-medium text-gray-700">
+          {label}
+        </label>
+        {maxLength !== undefined && (
+          <span
+            className={`text-xs ${
+              value.length > maxLength ? "text-red-600" : "text-gray-500"
+            }`}
+          >
+            {value.length}/{maxLength}
+          </span>
+        )}
+      </div>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20"
+      />
     </div>
   );
 }

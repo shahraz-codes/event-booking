@@ -1,15 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #fffbf5;
-  --foreground: #1c1917;
-}
+/*
+ * Brand and accent palette tokens.
+ *
+ * - The `@theme` block registers `brand-*` / `accent-*` Tailwind colour
+ *   utilities (e.g. `bg-brand-700`, `from-accent-500`) backed by CSS variables.
+ * - The `:root` block holds the default palette (matches Tailwind's amber so
+ *   the UI looks the same before any admin save).
+ * - The admin-configured palette is injected at runtime via an inline
+ *   `<style>` block in <head> from `src/app/layout.tsx`, overriding the
+ *   variables for the whole site.
+ */
 
 @theme inline {
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
+  --color-accent-300: var(--accent-300);
+  --color-accent-400: var(--accent-400);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+  --color-accent-800: var(--accent-800);
+  --color-accent-900: var(--accent-900);
+  --color-accent-950: var(--accent-950);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  /* Defaults — Tailwind v4 amber scale. */
+  --brand-50: #fffbeb;
+  --brand-100: #fef3c7;
+  --brand-200: #fde68a;
+  --brand-300: #fcd34d;
+  --brand-400: #fbbf24;
+  --brand-500: #f59e0b;
+  --brand-600: #d97706;
+  --brand-700: #b45309;
+  --brand-800: #92400e;
+  --brand-900: #78350f;
+  --brand-950: #451a03;
+
+  --accent-50: #fffbeb;
+  --accent-100: #fef3c7;
+  --accent-200: #fde68a;
+  --accent-300: #fcd34d;
+  --accent-400: #fbbf24;
+  --accent-500: #f59e0b;
+  --accent-600: #d97706;
+  --accent-700: #b45309;
+  --accent-800: #92400e;
+  --accent-900: #78350f;
+  --accent-950: #451a03;
+
+  --background: #fffbf5;
+  --foreground: #1c1917;
 }
 
 html {
@@ -33,5 +94,59 @@ body {
   select,
   textarea {
     font-size: 16px;
+  }
+}
+
+/*
+ * Marquee — used by the homepage stats strip when there are too many items
+ * to fit on one row. The track holds the items twice, so translating by -50%
+ * brings the duplicate set into the original position for a seamless loop.
+ *
+ * Note: the class is intentionally NOT named `animate-*`, because Tailwind v4
+ * owns that namespace via the `--animate-*` theme keys. Using a plain class
+ * keeps Tailwind out of the way and ensures these rules win the cascade.
+ */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  flex-wrap: nowrap;
+  animation: marquee-scroll 35s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover,
+.marquee-pause:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
   }
 }
