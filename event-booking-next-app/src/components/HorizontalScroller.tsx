@@ -68,7 +68,7 @@ export default function HorizontalScroller({
             onClick={() => scrollByDir(-1)}
             disabled={!canPrev}
             aria-label="Previous"
-            className="absolute left-1 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-100 bg-white/95 text-amber-900 shadow-lg backdrop-blur-sm transition-all hover:bg-amber-50 disabled:pointer-events-none disabled:opacity-0 sm:left-2 sm:flex sm:h-12 sm:w-12"
+            className="absolute left-1 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-brand-100 bg-white/95 text-brand-900 shadow-lg backdrop-blur-sm transition-all hover:bg-brand-50 disabled:pointer-events-none disabled:opacity-0 sm:left-2 sm:flex sm:h-12 sm:w-12"
           >
             <svg
               className="h-5 w-5 sm:h-6 sm:w-6"
@@ -89,7 +89,7 @@ export default function HorizontalScroller({
             onClick={() => scrollByDir(1)}
             disabled={!canNext}
             aria-label="Next"
-            className="absolute right-1 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-100 bg-white/95 text-amber-900 shadow-lg backdrop-blur-sm transition-all hover:bg-amber-50 disabled:pointer-events-none disabled:opacity-0 sm:right-2 sm:flex sm:h-12 sm:w-12"
+            className="absolute right-1 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-brand-100 bg-white/95 text-brand-900 shadow-lg backdrop-blur-sm transition-all hover:bg-brand-50 disabled:pointer-events-none disabled:opacity-0 sm:right-2 sm:flex sm:h-12 sm:w-12"
           >
             <svg
               className="h-5 w-5 sm:h-6 sm:w-6"

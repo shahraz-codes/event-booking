@@ -60,7 +60,7 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
   return (
     <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20">
       <div className="mb-12 text-center">
-        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
+        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-brand-600">
           Our Venue
         </p>
         <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">

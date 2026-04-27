@@ -43,9 +43,9 @@ function LoginForm() {
     <div className="flex min-h-[70vh] items-center justify-center px-4 sm:px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100">
             <svg
-              className="h-7 w-7 text-amber-700"
+              className="h-7 w-7 text-brand-700"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -80,7 +80,7 @@ function LoginForm() {
                 autoFocus
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-11 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-11 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="Enter admin password"
                 suppressHydrationWarning
               />
@@ -113,7 +113,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full rounded-xl bg-amber-600 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-amber-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-brand-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -135,7 +135,7 @@ export default function AdminLoginPage() {
     <Suspense
       fallback={
         <div className="flex min-h-[70vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
         </div>
       }
     >

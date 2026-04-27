@@ -18,11 +18,11 @@ export default function ServicesSection({
   if (services.length === 0) return null;
 
   return (
-    <section className="bg-amber-50/50 px-4 py-14 sm:px-6 sm:py-20">
+    <section className="bg-brand-50/50 px-4 py-14 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-7xl">
         <AnimateOnScroll variant="fadeUp">
           <div className="mb-10 text-center sm:mb-12">
-            <p className="mb-2 text-sm font-medium uppercase tracking-widest text-amber-600">
+            <p className="mb-2 text-sm font-medium uppercase tracking-widest text-brand-600">
               What We Offer
             </p>
             <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
@@ -40,8 +40,8 @@ export default function ServicesSection({
                 key={service.id}
                 className="w-[78%] shrink-0 snap-start sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-6rem)/4)]"
               >
-                <div className="group flex h-full flex-col rounded-2xl border border-amber-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
-                  <div className="mb-4 inline-flex self-start rounded-xl bg-amber-100 p-3 text-amber-700 transition-transform group-hover:scale-110">
+                <div className="group flex h-full flex-col rounded-2xl border border-brand-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
+                  <div className="mb-4 inline-flex self-start rounded-xl bg-brand-100 p-3 text-brand-700 transition-transform group-hover:scale-110">
                     <svg
                       className="h-8 w-8"
                       fill="none"

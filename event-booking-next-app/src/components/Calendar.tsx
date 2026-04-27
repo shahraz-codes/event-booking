@@ -107,11 +107,11 @@ export default function Calendar({
               !isCurrentMonth
                 ? "text-gray-300"
                 : isSelected
-                  ? "bg-amber-600 text-white shadow-md"
+                  ? "bg-brand-600 text-white shadow-md"
                   : isDisabled
                     ? "cursor-not-allowed bg-red-50 text-red-300 line-through"
-                    : "text-gray-700 hover:bg-amber-100 hover:text-amber-900"
-            } ${isToday && !isSelected ? "ring-2 ring-amber-400" : ""}`}
+                    : "text-gray-700 hover:bg-brand-100 hover:text-brand-900"
+            } ${isToday && !isSelected ? "ring-2 ring-brand-400" : ""}`}
           >
             {format(cellDay, "d")}
             {isDisabled && isCurrentMonth && !isPast && (
@@ -143,11 +143,11 @@ export default function Calendar({
           Unavailable
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-amber-600" />
+          <span className="inline-block h-3 w-3 rounded bg-brand-600" />
           Selected
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded ring-2 ring-amber-400" />
+          <span className="inline-block h-3 w-3 rounded ring-2 ring-brand-400" />
           Today
         </div>
       </div>

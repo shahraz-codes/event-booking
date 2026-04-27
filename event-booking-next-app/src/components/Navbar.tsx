@@ -40,11 +40,11 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-amber-100 bg-white/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-brand-100 bg-white/80 backdrop-blur-md">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         <Link
           href="/"
-          className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight text-amber-900 sm:gap-2.5 sm:text-xl"
+          className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight text-brand-900 sm:gap-2.5 sm:text-xl"
         >
           <Image
             src="/images/logo.png"
@@ -64,8 +64,8 @@ export default function Navbar() {
               href={link.href}
               className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 pathname === link.href
-                  ? "bg-amber-100 text-amber-900"
-                  : "text-gray-600 hover:bg-amber-50 hover:text-amber-800"
+                  ? "bg-brand-100 text-brand-900"
+                  : "text-gray-600 hover:bg-brand-50 hover:text-brand-800"
               }`}
             >
               {link.label}
@@ -78,7 +78,7 @@ export default function Navbar() {
           type="button"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           onClick={() => setMobileOpen((o) => !o)}
-          className="inline-flex items-center justify-center rounded-lg p-2 text-amber-900 transition-colors hover:bg-amber-50 sm:hidden"
+          className="inline-flex items-center justify-center rounded-lg p-2 text-brand-900 transition-colors hover:bg-brand-50 sm:hidden"
         >
           <svg
             className="h-6 w-6"
@@ -98,7 +98,7 @@ export default function Navbar() {
 
       {/* Mobile dropdown */}
       {mobileOpen && (
-        <div className="border-t border-amber-100 bg-white/95 backdrop-blur-md sm:hidden">
+        <div className="border-t border-brand-100 bg-white/95 backdrop-blur-md sm:hidden">
           <div className="flex flex-col gap-1 px-4 py-3">
             {allLinks.map((link) => (
               <Link
@@ -107,8 +107,8 @@ export default function Navbar() {
                 onClick={closeMobile}
                 className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
                   pathname === link.href
-                    ? "bg-amber-100 text-amber-900"
-                    : "text-gray-600 hover:bg-amber-50 hover:text-amber-800"
+                    ? "bg-brand-100 text-brand-900"
+                    : "text-gray-600 hover:bg-brand-50 hover:text-brand-800"
                 }`}
               >
                 {link.label}
