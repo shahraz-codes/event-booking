@@ -1,7 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 const PUBLIC_ADMIN_PATHS = ["/admin/login", "/api/admin/login"];
+
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -14,11 +21,14 @@ export async function proxy(request: NextRequest) {
   const isPublic = PUBLIC_ADMIN_PATHS.some((p) => pathname === p);
   if (isPublic) return NextResponse.next();
 
+  // 1) Use the user's Supabase session to resolve the current user. The
+  //    supabase-ssr client will also refresh tokens (and write the new
+  //    cookies onto `response`) when the access token is close to expiry.
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    requiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     {
       cookies: {
         getAll() {
@@ -39,14 +49,35 @@ export async function proxy(request: NextRequest) {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
+  if (userError) {
+    console.warn("[proxy] supabase.auth.getUser() failed:", userError.message);
+  }
+
+  // 2) Membership check uses the SERVICE-ROLE key (bypasses RLS) so we
+  //    don't need an explicit "users can read their own admin_users row"
+  //    policy. The auth check above is what gates this — if the session
+  //    cookie is missing or invalid, `user` is null and we fall through
+  //    to the redirect below.
   if (user) {
-    const { data: adminRow } = await supabase
+    const service = createClient(
+      requiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
+      requiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const { data: adminRow, error: adminError } = await service
       .from("admin_users")
       .select("user_id")
       .eq("user_id", user.id)
       .maybeSingle();
+    if (adminError) {
+      console.warn(
+        "[proxy] admin_users lookup failed:",
+        adminError.message
+      );
+    }
     if (adminRow) return response;
   }
 

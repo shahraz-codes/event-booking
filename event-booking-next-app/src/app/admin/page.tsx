@@ -57,8 +57,8 @@ interface BlockedDate {
   reason: string | null;
 }
 
-const TABS = [
-  { key: "all", label: "All" },
+const STATUS_FILTERS: { key: string; label: string }[] = [
+  { key: "all", label: "All statuses" },
   { key: "PENDING", label: "Pending" },
   { key: "QUOTATION_SENT", label: "Quotation Sent" },
   { key: "QUOTATION_FINALIZED", label: "Finalized" },
@@ -68,7 +68,7 @@ const TABS = [
   { key: "CONFLICTED", label: "Conflicts" },
   { key: "REJECTED", label: "Rejected" },
   { key: "CANCELLED", label: "Cancelled" },
-] as const;
+];
 
 const EMPTY_ITEM: QuotationItemData = {
   particular: "",
@@ -131,8 +131,9 @@ function AdminPageContent() {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
-  const [activeTab, setActiveTab] = useState<string>("all");
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -177,7 +178,8 @@ function AdminPageContent() {
   const fetchBookings = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (activeTab !== "all") params.set("status", activeTab);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (searchQuery) params.set("q", searchQuery);
       params.set("page", String(page));
       params.set("pageSize", String(pageSize));
       const res = await fetch(`/api/admin/bookings?${params.toString()}`);
@@ -195,7 +197,7 @@ function AdminPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, pageSize]);
+  }, [statusFilter, searchQuery, page, pageSize]);
 
   const fetchBlocked = useCallback(async () => {
     try {
@@ -209,7 +211,15 @@ function AdminPageContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [activeTab, pageSize]);
+  }, [statusFilter, searchQuery, pageSize]);
+
+  // Debounce search input so we don't refetch on every keystroke.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
 
   useEffect(() => {
     setLoading(true);
@@ -610,130 +620,85 @@ function AdminPageContent() {
       <div className="grid gap-6 sm:gap-8 xl:grid-cols-3">
         {/* Bookings List */}
         <div className="xl:col-span-2">
-          {/* Mobile: Filter button */}
-          <div className="mb-4 sm:hidden">
-            <button
-              type="button"
-              onClick={() => setFilterModalOpen(true)}
-              className="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-            >
-              <span className="flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 text-gray-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                  />
-                </svg>
-                <span>Filter</span>
-                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-900">
-                  {TABS.find((t) => t.key === activeTab)?.label ?? "All"}
-                </span>
-              </span>
+          {/* Search + status filter */}
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
               <svg
-                className="h-4 w-4 text-gray-400"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={2}
+                aria-hidden="true"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
+                />
               </svg>
-            </button>
-          </div>
-
-          {/* Desktop: Horizontal tabs */}
-          <div className="mb-4 hidden sm:block">
-            <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
-              {TABS.map((tab) => (
+              <input
+                type="search"
+                inputMode="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search by booking ID or customer name"
+                className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-9 pr-9 text-sm text-gray-900 placeholder-gray-400 shadow-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                aria-label="Search bookings"
+              />
+              {searchInput && (
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    activeTab === tab.key
-                      ? "bg-white text-brand-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
                 >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Mobile filter modal */}
-          {filterModalOpen && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Filter bookings"
-              className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:hidden"
-              onClick={() => setFilterModalOpen(false)}
-            >
-              <div
-                className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-gray-900">
-                    Filter by status
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setFilterModalOpen(false)}
-                    aria-label="Close"
-                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100"
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
                   >
-                    <svg
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {TABS.map((tab) => (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => {
-                        setActiveTab(tab.key);
-                        setFilterModalOpen(false);
-                      }}
-                      className={`flex items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
-                        activeTab === tab.key
-                          ? "bg-brand-50 text-brand-900"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span>{tab.label}</span>
-                      {activeTab === tab.key && (
-                        <svg
-                          className="h-5 w-5 text-brand-700"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
-          )}
+
+            <label className="sm:w-56">
+              <span className="sr-only">Filter by status</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                aria-label="Filter by status"
+              >
+                {STATUS_FILTERS.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {(statusFilter !== "all" || searchInput) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setSearchInput("");
+                }}
+                className="self-start rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 sm:self-auto"
+              >
+                Clear
+              </button>
+            )}
+          </div>
 
           {/* Pagination (above the list) */}
           {!loading && totalBookings > 0 && (

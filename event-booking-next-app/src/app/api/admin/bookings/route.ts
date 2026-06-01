@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
     }
 
     const filter = status && VALID_STATUSES.includes(status) ? status : undefined;
+    const search = params.get("q")?.trim() || undefined;
 
     const pageParam = params.get("page");
     const pageSizeParam = params.get("pageSize");
@@ -61,11 +62,11 @@ export async function GET(request: NextRequest) {
         100,
         Math.max(1, parseInt(pageSizeParam ?? "10", 10) || 10)
       );
-      const result = await getAllBookings(filter, { page, pageSize });
+      const result = await getAllBookings(filter, { page, pageSize, search });
       return Response.json({ success: true, ...result });
     }
 
-    const bookings = await getAllBookings(filter);
+    const bookings = await getAllBookings(filter, { search });
     return Response.json({ success: true, data: bookings });
   } catch (error) {
     console.error("Get bookings error:", error);

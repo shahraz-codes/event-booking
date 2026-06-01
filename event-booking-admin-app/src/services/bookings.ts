@@ -47,6 +47,8 @@ function mapBooking(row: any): BookingRecord {
 
 export async function listBookings(filter?: {
   status?: BookingStatus | BookingStatus[];
+  /** Case-insensitive search across `bookingId` (BNQ-…) and `name`. */
+  search?: string;
 }): Promise<BookingRecord[]> {
   let query = supabase
     .from("Booking")
@@ -57,6 +59,16 @@ export async function listBookings(filter?: {
   if (filter?.status) {
     const arr = Array.isArray(filter.status) ? filter.status : [filter.status];
     query = query.in("status", arr);
+  }
+
+  const search = filter?.search?.trim();
+  if (search) {
+    // Escape PostgREST special chars so a customer name like "O'Connor"
+    // doesn't break the .or() filter.
+    const safe = search.replace(/[,()]/g, " ");
+    query = query.or(
+      `bookingId.ilike.%${safe}%,name.ilike.%${safe}%`
+    );
   }
 
   const { data, error } = await query;

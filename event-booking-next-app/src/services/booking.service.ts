@@ -212,11 +212,12 @@ async function authorizeCustomerAccess(
 
 export async function getAllBookings(
   status?: BookingStatus,
-  pagination?: { page?: number; pageSize?: number }
+  pagination?: { page?: number; pageSize?: number; search?: string }
 ) {
-  const where = status ? { status } : undefined;
+  const search = pagination?.search?.trim();
+  const where = buildBookingsWhere(status, search);
 
-  if (!pagination) {
+  if (!pagination || (pagination.page === undefined && pagination.pageSize === undefined)) {
     return prisma.booking.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -252,6 +253,30 @@ export async function getAllBookings(
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
+}
+
+/**
+ * Combines optional status + optional case-insensitive search across
+ * `bookingId` (public BNQ-…) and customer `name` into a single Prisma
+ * `where` clause.
+ */
+function buildBookingsWhere(
+  status: BookingStatus | undefined,
+  search: string | undefined
+) {
+  const filters: Record<string, unknown>[] = [];
+  if (status) filters.push({ status });
+  if (search) {
+    filters.push({
+      OR: [
+        { bookingId: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: "insensitive" } },
+      ],
+    });
+  }
+  if (filters.length === 0) return undefined;
+  if (filters.length === 1) return filters[0];
+  return { AND: filters };
 }
 
 /**
