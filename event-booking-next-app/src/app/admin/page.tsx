@@ -5,23 +5,23 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Calendar, { useCalendarData } from "@/components/Calendar";
 import { EVENT_TYPES, BOOKING_STATUS_LABELS } from "@/types";
-import type { BookingComment, QuotationData, QuotationItemData } from "@/types";
+import type {
+  BookingComment,
+  QuotationData,
+  QuotationItemData,
+  BookingStatus,
+} from "@/types";
 import { format } from "date-fns";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
-
-type BookingStatus =
-  | "PENDING"
-  | "QUOTATION_SENT"
-  | "QUOTATION_FINALIZED"
-  | "APPROVED"
-  | "REJECTED";
+import WhatsAppNotifyButton from "@/components/WhatsAppNotifyButton";
 
 interface Booking {
   id: string;
   bookingId: string;
   name: string;
   phone: string;
+  email: string | null;
   date: string;
   eventType: string;
   numberOfAttendees: number;
@@ -30,6 +30,22 @@ interface Booking {
   adminNote: string | null;
   totalAmount: number | null;
   advanceAmount: number | null;
+  notifyViaWhatsapp: boolean;
+  notifyViaEmail: boolean;
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  pendingRequestDecidedAt: string | null;
+  requestedNewDate: string | null;
+  dateChangeReason: string | null;
+  previousDate: string | null;
+  dateChangeAcknowledged: boolean;
+  conflictedAt: string | null;
+  conflictingBookingId: string | null;
+  conflictWinner?: {
+    bookingId: string;
+    name: string;
+    date: string;
+  } | null;
   comments: BookingComment[];
   quotation?: QuotationData | null;
   createdAt: string;
@@ -47,7 +63,11 @@ const TABS = [
   { key: "QUOTATION_SENT", label: "Quotation Sent" },
   { key: "QUOTATION_FINALIZED", label: "Finalized" },
   { key: "APPROVED", label: "Approved" },
+  { key: "CANCELLATION_REQUESTED", label: "Cancellation Requests" },
+  { key: "DATE_CHANGE_REQUESTED", label: "Date Change Requests" },
+  { key: "CONFLICTED", label: "Conflicts" },
   { key: "REJECTED", label: "Rejected" },
+  { key: "CANCELLED", label: "Cancelled" },
 ] as const;
 
 const EMPTY_ITEM: QuotationItemData = {
@@ -58,6 +78,37 @@ const EMPTY_ITEM: QuotationItemData = {
   amount: 0,
   order: 0,
 };
+
+/**
+ * Suggests the most appropriate event type for a quick click-to-WhatsApp
+ * based on the booking's current status. Used by the inline notify button
+ * so admin doesn't have to pick the template manually.
+ */
+function pickEventForStatus(
+  status: BookingStatus
+): import("@/lib/notification-channel").NotificationEventType {
+  switch (status) {
+    case "QUOTATION_SENT":
+      return "booking.quotation_sent";
+    case "QUOTATION_FINALIZED":
+      return "booking.quotation_finalized";
+    case "APPROVED":
+      return "booking.approved";
+    case "REJECTED":
+      return "booking.rejected";
+    case "CANCELLED":
+      return "booking.cancelled_by_admin";
+    case "CANCELLATION_REQUESTED":
+      return "booking.cancellation_requested";
+    case "DATE_CHANGE_REQUESTED":
+      return "booking.date_change_requested";
+    case "CONFLICTED":
+      return "booking.conflicted";
+    case "PENDING":
+    default:
+      return "booking.comment_added";
+  }
+}
 
 export default function AdminPage() {
   return (
@@ -171,10 +222,39 @@ function AdminPageContent() {
 
   // ─── Booking Actions ────────────────────────────────────
 
+  type AdminAction =
+    | "approve"
+    | "reject"
+    | "cancel"
+    | "approveCancellation"
+    | "declineCancellation"
+    | "approveDateChange"
+    | "declineDateChange"
+    | "acknowledgeDateChange"
+    | "forceResolveConflict";
+
+  const successMessages: Record<AdminAction, string> = {
+    approve: "Booking approved",
+    reject: "Booking rejected",
+    cancel: "Booking cancelled",
+    approveCancellation: "Cancellation approved",
+    declineCancellation: "Cancellation request declined",
+    approveDateChange: "Date change approved",
+    declineDateChange: "Date change request declined",
+    acknowledgeDateChange: "Date change acknowledged",
+    forceResolveConflict: "Conflict resolved",
+  };
+
   const handleAction = async (
     id: string,
-    action: "approve" | "reject" | "cancel",
-    extra?: { totalAmount: number; advanceAmount: number; adminNote?: string }
+    action: AdminAction,
+    extra?: {
+      totalAmount?: number;
+      advanceAmount?: number;
+      adminNote?: string;
+      conflictAction?: "force_cancel" | "reset_to_pending";
+      newDate?: string;
+    }
   ) => {
     setActionLoading(id);
     try {
@@ -187,6 +267,10 @@ function AdminPageContent() {
         payload.totalAmount = extra.totalAmount;
         payload.advanceAmount = extra.advanceAmount;
       }
+      if (action === "forceResolveConflict" && extra) {
+        payload.conflictAction = extra.conflictAction;
+        payload.newDate = extra.newDate;
+      }
       const res = await fetch("/api/admin/bookings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -194,10 +278,17 @@ function AdminPageContent() {
       });
       const json = await res.json();
       if (json.success) {
-        toast(
-          "success",
-          `Booking ${action === "cancel" ? "cancelled" : `${action}d`} successfully`
-        );
+        toast("success", successMessages[action]);
+        if (
+          action === "approve" &&
+          Array.isArray(json.data?.cascadedBookingIds) &&
+          json.data.cascadedBookingIds.length > 0
+        ) {
+          toast(
+            "success",
+            `${json.data.cascadedBookingIds.length} other booking(s) on the same date were moved to CONFLICTED`
+          );
+        }
         setApprovalTarget(null);
         setApprovalForm({ totalAmount: "", advanceAmount: "", adminNote: "" });
         fetchBookings();
@@ -464,6 +555,10 @@ function AdminPageContent() {
       QUOTATION_FINALIZED: "bg-indigo-100 text-indigo-800",
       APPROVED: "bg-green-100 text-green-800",
       REJECTED: "bg-red-100 text-red-800",
+      CANCELLATION_REQUESTED: "bg-orange-100 text-orange-800",
+      DATE_CHANGE_REQUESTED: "bg-purple-100 text-purple-800",
+      CONFLICTED: "bg-rose-100 text-rose-800",
+      CANCELLED: "bg-gray-200 text-gray-700",
     };
     return (
       <span
@@ -475,7 +570,10 @@ function AdminPageContent() {
   };
 
   const canCreateOrEditQuotation = (b: Booking) =>
-    b.status !== "APPROVED" && b.status !== "REJECTED";
+    b.status !== "APPROVED" &&
+    b.status !== "REJECTED" &&
+    b.status !== "CANCELLED" &&
+    b.status !== "CONFLICTED";
 
   const canApprove = (b: Booking) =>
     b.status === "PENDING" ||
@@ -775,9 +873,28 @@ function AdminPageContent() {
                     </div>
                     <div>
                       <p className="text-gray-500">Date</p>
-                      <p className="font-medium text-gray-900">
-                        {format(new Date(b.date), "MMM d, yyyy")}
-                      </p>
+                      {b.previousDate ? (
+                        <p className="font-medium text-gray-900">
+                          <span className="text-gray-400 line-through">
+                            {format(new Date(b.previousDate), "MMM d")}
+                          </span>{" "}
+                          → {format(new Date(b.date), "MMM d, yyyy")}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleAction(b.id, "acknowledgeDateChange")
+                            }
+                            className="ml-1 text-[10px] font-semibold text-brand-700 hover:underline"
+                            title="Mark this date change as acknowledged"
+                          >
+                            Ack
+                          </button>
+                        </p>
+                      ) : (
+                        <p className="font-medium text-gray-900">
+                          {format(new Date(b.date), "MMM d, yyyy")}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-gray-500">Attendees</p>
@@ -803,6 +920,237 @@ function AdminPageContent() {
                     <p className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
                       <span className="font-medium">Admin:</span> {b.adminNote}
                     </p>
+                  )}
+
+                  {/* Phase 4b - Cancellation request panel */}
+                  {b.status === "CANCELLATION_REQUESTED" && (
+                    <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3">
+                      <h4 className="text-xs font-semibold text-orange-900">
+                        Cancellation requested by customer
+                      </h4>
+                      {b.cancellationReason && (
+                        <p className="mt-1 text-xs text-orange-800">
+                          Reason: {b.cancellationReason}
+                        </p>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            handleAction(b.id, "approveCancellation", {
+                              adminNote: noteInput[b.id] || "",
+                            })
+                          }
+                          disabled={actionLoading === b.id}
+                          className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
+                        >
+                          Approve cancellation
+                        </button>
+                        <button
+                          onClick={() => {
+                            const reason = noteInput[b.id]?.trim();
+                            if (!reason) {
+                              toast(
+                                "error",
+                                "Please enter a reason in the note field before declining"
+                              );
+                              return;
+                            }
+                            handleAction(b.id, "declineCancellation", {
+                              adminNote: reason,
+                            });
+                          }}
+                          disabled={actionLoading === b.id}
+                          className="rounded-md border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-800 hover:bg-orange-100 disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+                        <input
+                          type="text"
+                          placeholder="Admin note (required to decline)"
+                          value={noteInput[b.id] || ""}
+                          onChange={(e) =>
+                            setNoteInput({
+                              ...noteInput,
+                              [b.id]: e.target.value,
+                            })
+                          }
+                          className="flex-1 min-w-[160px] rounded-md border border-orange-200 px-2 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 4c - Date change request panel */}
+                  {b.status === "DATE_CHANGE_REQUESTED" && (
+                    <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-3">
+                      <h4 className="text-xs font-semibold text-purple-900">
+                        Date change requested
+                      </h4>
+                      <p className="mt-1 text-xs text-purple-800">
+                        <span className="line-through">
+                          {format(new Date(b.date), "MMM d, yyyy")}
+                        </span>{" "}
+                        →{" "}
+                        <strong>
+                          {b.requestedNewDate
+                            ? format(new Date(b.requestedNewDate), "MMM d, yyyy")
+                            : "—"}
+                        </strong>
+                      </p>
+                      {b.dateChangeReason && (
+                        <p className="mt-1 text-xs text-purple-800">
+                          Reason: {b.dateChangeReason}
+                        </p>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            handleAction(b.id, "approveDateChange", {
+                              adminNote: noteInput[b.id] || "",
+                            })
+                          }
+                          disabled={actionLoading === b.id}
+                          className="rounded-md bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          Approve date change
+                        </button>
+                        <button
+                          onClick={() => {
+                            const reason = noteInput[b.id]?.trim();
+                            if (!reason) {
+                              toast(
+                                "error",
+                                "Please enter a reason in the note field before declining"
+                              );
+                              return;
+                            }
+                            handleAction(b.id, "declineDateChange", {
+                              adminNote: reason,
+                            });
+                          }}
+                          disabled={actionLoading === b.id}
+                          className="rounded-md border border-purple-300 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-100 disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+                        <input
+                          type="text"
+                          placeholder="Admin note (required to decline)"
+                          value={noteInput[b.id] || ""}
+                          onChange={(e) =>
+                            setNoteInput({
+                              ...noteInput,
+                              [b.id]: e.target.value,
+                            })
+                          }
+                          className="flex-1 min-w-[160px] rounded-md border border-purple-200 px-2 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 4d - Conflict resolution panel */}
+                  {b.status === "CONFLICTED" && (
+                    <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                      <h4 className="text-xs font-semibold text-rose-900">
+                        Date was given to another booking
+                      </h4>
+                      {b.conflictWinner && (
+                        <p className="mt-1 text-xs text-rose-800">
+                          Confirmed for{" "}
+                          <span className="font-mono">
+                            {b.conflictWinner.bookingId}
+                          </span>{" "}
+                          ({b.conflictWinner.name})
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-rose-700">
+                        Coordinate with the customer (WhatsApp/phone). When
+                        you have a new date, use the controls below.
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <input
+                          type="date"
+                          min={format(new Date(), "yyyy-MM-dd")}
+                          value={noteInput[`${b.id}::date`] || ""}
+                          onChange={(e) =>
+                            setNoteInput({
+                              ...noteInput,
+                              [`${b.id}::date`]: e.target.value,
+                            })
+                          }
+                          className="rounded-md border border-rose-200 px-2 py-1 text-xs"
+                        />
+                        <button
+                          onClick={() => {
+                            const newDate = noteInput[`${b.id}::date`];
+                            if (!newDate) {
+                              toast(
+                                "error",
+                                "Pick a new date first to reset this booking to pending"
+                              );
+                              return;
+                            }
+                            handleAction(b.id, "forceResolveConflict", {
+                              conflictAction: "reset_to_pending",
+                              newDate,
+                              adminNote: noteInput[b.id] || "",
+                            });
+                          }}
+                          disabled={actionLoading === b.id}
+                          className="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+                        >
+                          Reset with new date
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleAction(b.id, "forceResolveConflict", {
+                              conflictAction: "force_cancel",
+                              adminNote: noteInput[b.id] || "",
+                            })
+                          }
+                          disabled={actionLoading === b.id}
+                          className="rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                        >
+                          Force cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 4c QUOTATION_FINALIZED + date change banner */}
+                  {b.previousDate &&
+                    b.status === "QUOTATION_FINALIZED" &&
+                    !b.dateChangeAcknowledged && (
+                      <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-xs text-yellow-900">
+                        Date changed after quotation was finalized — review
+                        pricing before re-issuing or keep the current quotation.
+                      </div>
+                    )}
+
+                  {/* Phase 8 v1 - WhatsApp click-to-notify */}
+                  {b.notifyViaWhatsapp && b.phone && (
+                    <div className="mb-3">
+                      <WhatsAppNotifyButton
+                        booking={{
+                          name: b.name,
+                          phone: b.phone,
+                          email: b.email,
+                          notifyViaWhatsapp: b.notifyViaWhatsapp,
+                          notifyViaEmail: b.notifyViaEmail,
+                          bookingId: b.bookingId,
+                          date: b.date,
+                        }}
+                        event={pickEventForStatus(b.status)}
+                        amount={
+                          b.totalAmount
+                            ? `₹${b.totalAmount.toLocaleString("en-IN")}`
+                            : undefined
+                        }
+                        reason={b.adminNote ?? undefined}
+                        variant="inline"
+                      />
+                    </div>
                   )}
 
                   {/* Existing Quotation Summary */}

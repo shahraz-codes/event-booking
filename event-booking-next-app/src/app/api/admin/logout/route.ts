@@ -1,16 +1,13 @@
-import { COOKIE_NAME } from "@/lib/auth";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export async function POST() {
-  const response = Response.json({ success: true });
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
 
-  response.headers.append(
-    "Set-Cookie",
-    `${COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict`
-  );
+  const response = Response.json({ success: true });
   response.headers.append(
     "Set-Cookie",
     `admin_logged_in=; Path=/; Max-Age=0; SameSite=Strict`
   );
-
   return response;
 }

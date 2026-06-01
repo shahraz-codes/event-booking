@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { bookingSchema, getZodErrorMessage } from "@/types";
 import { createBooking } from "@/services/booking.service";
 import { getCalendarData } from "@/services/calendar.service";
+import { signBookingToken } from "@/lib/magic-link";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,8 +27,12 @@ export async function POST(request: NextRequest) {
     }
 
     const booking = await createBooking(parsed.data);
+    const magicLinkToken = signBookingToken(booking.bookingId);
 
-    return Response.json({ success: true, data: booking }, { status: 201 });
+    return Response.json(
+      { success: true, data: { ...booking, magicLinkToken } },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Create booking error:", error);
     return Response.json(
