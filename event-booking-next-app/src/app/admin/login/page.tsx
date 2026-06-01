@@ -8,6 +8,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/admin";
 
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,12 +23,12 @@ function LoginForm() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
       const json = await res.json();
 
       if (!json.success) {
-        setError(json.error || "Invalid password");
+        setError(json.error || "Invalid credentials");
         return;
       }
 
@@ -60,11 +61,32 @@ function LoginForm() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Login</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Enter your password to access the dashboard
+            Sign in with your admin email and password
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="email"
+              className="mb-1.5 block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              autoFocus
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              placeholder="admin@yourdomain.com"
+              suppressHydrationWarning
+            />
+          </div>
+
           <div>
             <label
               htmlFor="password"
@@ -77,7 +99,7 @@ function LoginForm() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 required
-                autoFocus
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-11 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
@@ -112,7 +134,7 @@ function LoginForm() {
 
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading || !email || !password}
             className="w-full rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-brand-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (

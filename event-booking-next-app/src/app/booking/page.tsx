@@ -8,10 +8,15 @@ import Link from "next/link";
 interface BookingResult {
   bookingId: string;
   name: string;
+  phone: string;
+  email: string | null;
   date: string;
   eventType: string;
   status: string;
   secretCode: string;
+  notifyViaWhatsapp: boolean;
+  notifyViaEmail: boolean;
+  magicLinkToken: string;
 }
 
 export default function BookingPage() {
@@ -20,14 +25,17 @@ export default function BookingPage() {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
+    email: "",
     eventType: "",
     numberOfAttendees: "",
     notes: "",
   });
+  const [notifyViaWhatsapp, setNotifyViaWhatsapp] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BookingResult | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (result && typeof window !== "undefined") {
@@ -45,9 +53,18 @@ export default function BookingPage() {
     }
 
     const payload = {
-      ...formData,
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email || undefined,
+      eventType: formData.eventType,
+      notes: formData.notes,
       date: selectedDate,
       numberOfAttendees: parseInt(formData.numberOfAttendees, 10) || 0,
+      notifyViaWhatsapp,
+      // Email opt-in checkbox is hidden for now (Phase 8 v2 not shipped yet).
+      // Always submit false so customers don't silently opt in to a channel
+      // that doesn't deliver.
+      notifyViaEmail: false,
     };
     const parsed = bookingSchema.safeParse(payload);
     if (!parsed.success) {
@@ -86,6 +103,31 @@ export default function BookingPage() {
     } catch {
       /* clipboard not available */
     }
+  };
+
+  const buildStatusUrl = (token: string) => {
+    if (typeof window === "undefined") return `/booking-status?token=${token}`;
+    return `${window.location.origin}/booking-status?token=${token}`;
+  };
+
+  const copyStatusLink = async () => {
+    if (!result?.magicLinkToken) return;
+    try {
+      await navigator.clipboard.writeText(buildStatusUrl(result.magicLinkToken));
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      /* clipboard not available */
+    }
+  };
+
+  const buildWhatsAppShareUrl = () => {
+    if (!result) return "";
+    // E.164-ish: strip non-digits. wa.me does not allow '+' / spaces.
+    const phone = result.phone.replace(/[^\d]/g, "");
+    const link = buildStatusUrl(result.magicLinkToken);
+    const text = `Hi ${result.name}, here's the secure link to track your AR Banquets booking ${result.bookingId} and chat with us: ${link}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
 
   if (result) {
@@ -155,15 +197,54 @@ export default function BookingPage() {
             </p>
           </div>
 
+          {/* Magic-link CTA panel (Phase 7 v1) */}
+          <div className="mb-6 rounded-xl border border-brand-200 bg-white p-4 text-left">
+            <p className="mb-3 text-sm font-semibold text-brand-900">
+              Save your private status link
+            </p>
+            <p className="mb-3 text-xs text-gray-600">
+              This personal link opens your booking, chat with us, and update
+              your booking — no login needed. Keep it safe.
+            </p>
+            <div className="mb-3 flex items-center gap-2 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+              <span className="flex-1 truncate font-mono text-xs text-gray-700">
+                {buildStatusUrl(result.magicLinkToken)}
+              </span>
+              <button
+                onClick={copyStatusLink}
+                className="shrink-0 rounded-md bg-brand-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-700"
+              >
+                {linkCopied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            {result.notifyViaWhatsapp && (
+              <a
+                href={buildWhatsAppShareUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1DA851]"
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.978-1.607zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.149-.173.198-.297.297-.495.099-.198.05-.372-.025-.521-.075-.149-.669-1.611-.916-2.206-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.521.074-.793.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.288.173-1.413z" />
+                </svg>
+                Open in WhatsApp
+              </a>
+            )}
+          </div>
+
           <p className="mb-4 text-xs text-gray-500">
-            Save your Booking ID and Secret Code to track your request status.
+            (Or use the Booking ID + Secret Code above on the Check Status page.)
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
-              href={`/booking-status?id=${result.bookingId}`}
+              href={`/booking-status?token=${result.magicLinkToken}`}
               className="rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
             >
-              Track Status
+              Open My Booking
             </Link>
             <button
               onClick={() => {
@@ -172,10 +253,12 @@ export default function BookingPage() {
                 setFormData({
                   name: "",
                   phone: "",
+                  email: "",
                   eventType: "",
                   numberOfAttendees: "",
                   notes: "",
                 });
+                setNotifyViaWhatsapp(true);
               }}
               className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
@@ -243,7 +326,7 @@ export default function BookingPage() {
 
             <div>
               <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Phone Number
+                Phone Number <span className="text-xs text-gray-400">(WhatsApp)</span>
               </label>
               <input
                 id="phone"
@@ -253,6 +336,20 @@ export default function BookingPage() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="e.g. +91 98765 43210"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+                Email <span className="text-gray-400">(optional)</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                placeholder="you@example.com"
               />
             </div>
 
@@ -321,6 +418,30 @@ export default function BookingPage() {
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
                 placeholder="Any special requirements..."
               />
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-start gap-3">
+                <input
+                  id="notifyViaWhatsapp"
+                  type="checkbox"
+                  checked={notifyViaWhatsapp}
+                  onChange={(e) => setNotifyViaWhatsapp(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                />
+                <label
+                  htmlFor="notifyViaWhatsapp"
+                  className="cursor-pointer text-sm text-gray-700"
+                >
+                  Notify me about booking updates on WhatsApp
+                </label>
+              </div>
+              <p className="mt-3 text-xs text-gray-500">
+                We respect your preference for routine updates. However, we
+                will still contact you via WhatsApp about{" "}
+                <strong>critical changes</strong> to your booking (e.g. if your
+                date becomes unavailable due to another confirmed booking).
+              </p>
             </div>
 
             {error && (

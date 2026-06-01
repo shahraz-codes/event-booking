@@ -1,12 +1,26 @@
 "use client";
 
-import { Fragment, useState, FormEvent, useEffect, Suspense } from "react";
+import {
+  Fragment,
+  useState,
+  FormEvent,
+  useEffect,
+  useCallback,
+  Suspense,
+} from "react";
 import { useSearchParams } from "next/navigation";
-import { EVENT_TYPES, BOOKING_STATUS_LABELS } from "@/types";
-import type { BookingComment, QuotationData, BookingStatus } from "@/types";
+import {
+  EVENT_TYPES,
+  BOOKING_STATUS_LABELS,
+  type BookingComment,
+  type QuotationData,
+  type BookingStatus,
+  type CustomerBookingAction,
+} from "@/types";
 import { format } from "date-fns";
 import DownloadReceipt from "@/components/BookingReceipt";
 import DownloadQuotation from "@/components/QuotationPDF";
+import Calendar, { useCalendarData } from "@/components/Calendar";
 
 interface BookingBasic {
   bookingId: string;
@@ -16,82 +30,82 @@ interface BookingBasic {
   numberOfAttendees: number;
   status: BookingStatus;
   adminNote: string | null;
+  previousDate: string | null;
+  requestedNewDate: string | null;
+  conflictedAt: string | null;
   createdAt: string;
 }
 
 interface BookingFull extends BookingBasic {
   phone: string;
+  email: string | null;
   notes: string | null;
   totalAmount: number | null;
   advanceAmount: number | null;
+  notifyViaWhatsapp: boolean;
+  notifyViaEmail: boolean;
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  dateChangeReason: string | null;
+  dateChangeAcknowledged: boolean;
+  conflictingBookingId: string | null;
+  conflictWinner: {
+    bookingId: string;
+    name: string;
+    date: string;
+  } | null;
   comments: BookingComment[];
   quotation?: QuotationData | null;
 }
 
 const STATUS_CONFIG: Record<
   BookingStatus,
-  {
-    bg: string;
-    border: string;
-    text: string;
-    badge: string;
-    icon: React.ReactNode;
-  }
+  { bg: string; border: string; badge: string }
 > = {
   PENDING: {
     bg: "bg-yellow-50",
     border: "border-yellow-200",
-    text: "text-yellow-800",
     badge: "bg-yellow-100 text-yellow-800",
-    icon: (
-      <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
   },
   QUOTATION_SENT: {
     bg: "bg-blue-50",
     border: "border-blue-200",
-    text: "text-blue-800",
     badge: "bg-blue-100 text-blue-800",
-    icon: (
-      <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
   },
   QUOTATION_FINALIZED: {
     bg: "bg-indigo-50",
     border: "border-indigo-200",
-    text: "text-indigo-800",
     badge: "bg-indigo-100 text-indigo-800",
-    icon: (
-      <svg className="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
   },
   APPROVED: {
     bg: "bg-green-50",
     border: "border-green-200",
-    text: "text-green-800",
     badge: "bg-green-100 text-green-800",
-    icon: (
-      <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
   },
   REJECTED: {
     bg: "bg-red-50",
     border: "border-red-200",
-    text: "text-red-800",
     badge: "bg-red-100 text-red-800",
-    icon: (
-      <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
+  },
+  CANCELLATION_REQUESTED: {
+    bg: "bg-orange-50",
+    border: "border-orange-200",
+    badge: "bg-orange-100 text-orange-800",
+  },
+  DATE_CHANGE_REQUESTED: {
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    badge: "bg-purple-100 text-purple-800",
+  },
+  CONFLICTED: {
+    bg: "bg-rose-50",
+    border: "border-rose-200",
+    badge: "bg-rose-100 text-rose-800",
+  },
+  CANCELLED: {
+    bg: "bg-gray-50",
+    border: "border-gray-200",
+    badge: "bg-gray-200 text-gray-700",
   },
 };
 
@@ -102,18 +116,40 @@ const PROGRESS_STEPS: { status: BookingStatus; label: string }[] = [
   { status: "APPROVED", label: "Approved" },
 ];
 
+const TERMINAL_OR_OFFTRACK: BookingStatus[] = [
+  "REJECTED",
+  "CANCELLED",
+  "CONFLICTED",
+];
+
 function getProgressIndex(status: BookingStatus): number {
-  if (status === "REJECTED") return -1;
+  if (TERMINAL_OR_OFFTRACK.includes(status)) return -1;
+  if (status === "CANCELLATION_REQUESTED" || status === "DATE_CHANGE_REQUESTED")
+    return PROGRESS_STEPS.findIndex((s) => s.status === "APPROVED");
   return PROGRESS_STEPS.findIndex((s) => s.status === status);
 }
 
+const DIRECT_CANCELLABLE = [
+  "PENDING",
+  "QUOTATION_SENT",
+  "QUOTATION_FINALIZED",
+  "CONFLICTED",
+] as const;
+const DIRECT_DATE_CHANGEABLE = [
+  "PENDING",
+  "QUOTATION_SENT",
+  "QUOTATION_FINALIZED",
+] as const;
+
 function BookingStatusContent() {
   const searchParams = useSearchParams();
-  const prefilled = searchParams.get("id") || "";
+  const prefilledToken = searchParams.get("token") || "";
+  const prefilledId = searchParams.get("id") || "";
 
-  const [bookingId, setBookingId] = useState(prefilled);
+  const [bookingId, setBookingId] = useState(prefilledId);
   const [booking, setBooking] = useState<BookingBasic | BookingFull | null>(null);
   const [accessLevel, setAccessLevel] = useState<"basic" | "full">("basic");
+  const [authToken, setAuthToken] = useState<string>(prefilledToken);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,67 +160,114 @@ function BookingStatusContent() {
   const [commentInput, setCommentInput] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
 
-  const fetchStatus = async (id: string, code?: string) => {
-    setLoading(true);
-    setError(null);
-    setBooking(null);
-    setAccessLevel("basic");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-    try {
-      let url = `/api/bookings/status?bookingId=${encodeURIComponent(id)}`;
-      if (code) url += `&secretCode=${encodeURIComponent(code)}`;
+  // cancellation modal
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
-      const res = await fetch(url);
-      const json = await res.json();
+  // date-change modal
+  const [dateModalOpen, setDateModalOpen] = useState(false);
+  const [dateModalMode, setDateModalMode] = useState<"direct" | "request" | "pick">("direct");
+  const [newDate, setNewDate] = useState<string | null>(null);
+  const [dateReason, setDateReason] = useState("");
 
-      if (!json.success) {
-        setError(json.error || "Booking not found");
-        return;
+  const { disabledDates } = useCalendarData();
+
+  const buildQuery = useCallback(
+    (overrides?: { secretCode?: string; bookingIdOverride?: string }) => {
+      const sp = new URLSearchParams();
+      if (authToken) {
+        sp.set("token", authToken);
+      } else {
+        const idForQuery =
+          overrides?.bookingIdOverride || bookingId || (booking?.bookingId ?? "");
+        if (idForQuery) sp.set("bookingId", idForQuery);
+        const code = overrides?.secretCode ?? secretCode;
+        if (code) sp.set("secretCode", code);
       }
+      return sp.toString();
+    },
+    [authToken, bookingId, secretCode, booking]
+  );
 
-      setBooking(json.data);
-      setAccessLevel(json.accessLevel || "basic");
-    } catch {
-      setError("Failed to fetch status. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchStatus = useCallback(
+    async (opts?: {
+      idOverride?: string;
+      tokenOverride?: string;
+      secretOverride?: string;
+    }) => {
+      setLoading(true);
+      setError(null);
 
+      try {
+        const sp = new URLSearchParams();
+        if (opts?.tokenOverride ?? authToken) {
+          sp.set("token", opts?.tokenOverride ?? authToken);
+        } else {
+          sp.set("bookingId", (opts?.idOverride ?? bookingId).trim());
+          if (opts?.secretOverride ?? secretCode) {
+            sp.set("secretCode", opts?.secretOverride ?? secretCode);
+          }
+        }
+
+        const res = await fetch(`/api/bookings/status?${sp.toString()}`);
+        const json = await res.json();
+
+        if (!json.success) {
+          setError(json.error || "Booking not found");
+          setBooking(null);
+          return;
+        }
+
+        setBooking(json.data);
+        setAccessLevel(json.accessLevel || "basic");
+        if (json.data?.bookingId) setBookingId(json.data.bookingId);
+      } catch {
+        setError("Failed to fetch status. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [authToken, bookingId, secretCode]
+  );
+
+  // bootstrap from URL
   useEffect(() => {
-    if (prefilled) {
-      fetchStatus(prefilled);
+    if (prefilledToken) {
+      fetchStatus({ tokenOverride: prefilledToken });
+    } else if (prefilledId) {
+      fetchStatus({ idOverride: prefilledId });
     }
-  }, [prefilled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefilledToken, prefilledId]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (bookingId.trim()) {
-      setSecretCode("");
-      setUnlockError(null);
-      fetchStatus(bookingId.trim());
-    }
+    if (!bookingId.trim()) return;
+    setAuthToken("");
+    setSecretCode("");
+    setUnlockError(null);
+    fetchStatus({ idOverride: bookingId.trim() });
   };
 
   const handleUnlock = async (e: FormEvent) => {
     e.preventDefault();
     if (!secretCode.trim() || !booking) return;
-
     setUnlocking(true);
     setUnlockError(null);
-
     try {
-      const url = `/api/bookings/status?bookingId=${encodeURIComponent(
-        booking.bookingId
-      )}&secretCode=${encodeURIComponent(secretCode.trim())}`;
-      const res = await fetch(url);
+      const sp = new URLSearchParams({
+        bookingId: booking.bookingId,
+        secretCode: secretCode.trim(),
+      });
+      const res = await fetch(`/api/bookings/status?${sp.toString()}`);
       const json = await res.json();
-
       if (!json.success) {
         setUnlockError("Invalid secret code");
         return;
       }
-
       setBooking(json.data);
       setAccessLevel("full");
     } catch {
@@ -197,22 +280,23 @@ function BookingStatusContent() {
   const handleSendComment = async () => {
     const msg = commentInput.trim();
     if (!msg || !booking || accessLevel !== "full") return;
-
     setCommentLoading(true);
     try {
+      const body: Record<string, unknown> = { message: msg };
+      if (authToken) body.token = authToken;
+      else {
+        body.bookingId = booking.bookingId;
+        body.secretCode = secretCode.trim();
+      }
       const res = await fetch("/api/bookings/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookingId: booking.bookingId,
-          secretCode: secretCode.trim(),
-          message: msg,
-        }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (json.success) {
         setCommentInput("");
-        fetchStatus(booking.bookingId, secretCode.trim());
+        await fetchStatus();
       }
     } catch {
       /* noop */
@@ -221,11 +305,104 @@ function BookingStatusContent() {
     }
   };
 
+  const callAction = async (
+    action: CustomerBookingAction,
+    extra?: { reason?: string; newDate?: string }
+  ) => {
+    if (!booking) return;
+    setActionError(null);
+    setActionLoading(action);
+    try {
+      const auth: Record<string, string> = {};
+      if (authToken) auth.token = authToken;
+      else auth.secretCode = secretCode.trim();
+
+      const res = await fetch(
+        `/api/bookings/${encodeURIComponent(booking.bookingId)}/action`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, auth, ...extra }),
+        }
+      );
+      const json = await res.json();
+      if (!json.success) {
+        setActionError(json.error || "Action failed");
+        return;
+      }
+      // refresh
+      await fetchStatus();
+      setCancelModalOpen(false);
+      setCancelReason("");
+      setDateModalOpen(false);
+      setNewDate(null);
+      setDateReason("");
+    } catch {
+      setActionError("Action failed. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const onConfirmCancel = () => {
+    if (!booking) return;
+    const isRequest = booking.status === "APPROVED";
+    if (isRequest && !cancelReason.trim()) {
+      setActionError("A reason is required when requesting cancellation of an approved booking");
+      return;
+    }
+    void callAction(isRequest ? "request_cancel" : "cancel", {
+      reason: cancelReason.trim() || undefined,
+    });
+  };
+
+  const onConfirmDateChange = () => {
+    if (!booking || !newDate) return;
+    if (dateModalMode === "pick") {
+      void callAction("pick_new_date", { newDate, reason: dateReason.trim() || undefined });
+      return;
+    }
+    if (dateModalMode === "request" && !dateReason.trim()) {
+      setActionError("A reason is required for date change request on an approved booking");
+      return;
+    }
+    void callAction(
+      dateModalMode === "request" ? "request_date_change" : "change_date",
+      { newDate, reason: dateReason.trim() || undefined }
+    );
+  };
+
+  const openCancelModal = () => {
+    setCancelReason("");
+    setActionError(null);
+    setCancelModalOpen(true);
+  };
+
+  const openDateModal = (mode: "direct" | "request" | "pick") => {
+    setDateModalMode(mode);
+    setNewDate(null);
+    setDateReason("");
+    setActionError(null);
+    setDateModalOpen(true);
+  };
+
   const eventLabel = (val: string) =>
     EVENT_TYPES.find((t) => t.value === val)?.label || val;
 
   const fullBooking = accessLevel === "full" ? (booking as BookingFull) : null;
   const progressIdx = booking ? getProgressIndex(booking.status) : -1;
+
+  const canDirectCancel =
+    !!booking && (DIRECT_CANCELLABLE as readonly BookingStatus[]).includes(booking.status);
+  const canRequestCancel = booking?.status === "APPROVED";
+  const canDirectDateChange =
+    !!booking &&
+    (DIRECT_DATE_CHANGEABLE as readonly BookingStatus[]).includes(booking.status);
+  const canRequestDateChange = booking?.status === "APPROVED";
+  const canWithdrawRequest =
+    booking?.status === "CANCELLATION_REQUESTED" ||
+    booking?.status === "DATE_CHANGE_REQUESTED";
+  const showCalendarPicker = booking?.status === "CONFLICTED";
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
@@ -237,30 +414,34 @@ function BookingStatusContent() {
           Booking Status
         </h1>
         <p className="mt-2 text-sm text-gray-600 sm:text-base">
-          Enter your Booking ID to check the status
+          {authToken
+            ? "Opened via your private link"
+            : "Enter your Booking ID to check the status"}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="mb-8 flex gap-2 sm:gap-3">
-        <input
-          type="text"
-          value={bookingId}
-          onChange={(e) => setBookingId(e.target.value)}
-          placeholder="e.g. BNQ-2026-0001"
-          className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-3 text-sm font-mono text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 sm:px-4"
-        />
-        <button
-          type="submit"
-          disabled={loading || !bookingId.trim()}
-          className="shrink-0 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50 sm:px-6"
-        >
-          {loading ? (
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent inline-block" />
-          ) : (
-            "Search"
-          )}
-        </button>
-      </form>
+      {!authToken && (
+        <form onSubmit={handleSubmit} className="mb-8 flex gap-2 sm:gap-3">
+          <input
+            type="text"
+            value={bookingId}
+            onChange={(e) => setBookingId(e.target.value)}
+            placeholder="e.g. BNQ-2026-0001"
+            className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-3 text-sm font-mono text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 sm:px-4"
+          />
+          <button
+            type="submit"
+            disabled={loading || !bookingId.trim()}
+            className="shrink-0 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:opacity-50 sm:px-6"
+          >
+            {loading ? (
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              "Search"
+            )}
+          </button>
+        </form>
+      )}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-center text-sm text-red-700">
@@ -270,8 +451,75 @@ function BookingStatusContent() {
 
       {booking && (
         <div className="space-y-4">
+          {/* Conflict / requested-state banners */}
+          {booking.status === "CONFLICTED" && (
+            <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 sm:p-6">
+              <h3 className="mb-1 text-lg font-bold text-rose-900">
+                Your event date is no longer available
+              </h3>
+              <p className="mb-3 text-sm text-rose-800">
+                Another customer&apos;s booking for{" "}
+                <strong>
+                  {format(new Date(booking.date), "EEEE, MMMM d, yyyy")}
+                </strong>{" "}
+                has been confirmed. Pick a new date below or cancel your
+                request — we can also discuss alternatives in the chat thread.
+              </p>
+              {fullBooking?.conflictWinner && (
+                <p className="text-xs text-rose-700">
+                  Confirmed booking:{" "}
+                  <span className="font-mono">
+                    {fullBooking.conflictWinner.bookingId}
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {booking.status === "CANCELLATION_REQUESTED" && (
+            <div className="rounded-2xl border border-orange-300 bg-orange-50 p-4 sm:p-6">
+              <h3 className="mb-1 font-semibold text-orange-900">
+                Cancellation requested
+              </h3>
+              <p className="text-sm text-orange-800">
+                Your cancellation request has been submitted. We&apos;ll review
+                it and respond soon.
+              </p>
+            </div>
+          )}
+
+          {booking.status === "DATE_CHANGE_REQUESTED" && (
+            <div className="rounded-2xl border border-purple-300 bg-purple-50 p-4 sm:p-6">
+              <h3 className="mb-1 font-semibold text-purple-900">
+                Date change requested
+              </h3>
+              <p className="text-sm text-purple-800">
+                You requested to move to{" "}
+                <strong>
+                  {booking.requestedNewDate
+                    ? format(new Date(booking.requestedNewDate), "EEEE, MMMM d, yyyy")
+                    : "a new date"}
+                </strong>
+                . Awaiting admin approval.
+              </p>
+            </div>
+          )}
+
+          {booking.status === "CANCELLED" && (
+            <div className="rounded-2xl border border-gray-300 bg-gray-100 p-4 sm:p-6">
+              <h3 className="mb-1 font-semibold text-gray-800">
+                Booking cancelled
+              </h3>
+              {fullBooking?.cancellationReason && (
+                <p className="text-sm text-gray-700">
+                  Reason: {fullBooking.cancellationReason}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Progress Tracker */}
-          {booking.status !== "REJECTED" && (
+          {progressIdx >= 0 && (
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
               <h3 className="mb-4 text-sm font-semibold text-gray-900">
                 Booking Progress
@@ -280,8 +528,7 @@ function BookingStatusContent() {
                 {PROGRESS_STEPS.map((step, idx) => {
                   const isLast = idx === PROGRESS_STEPS.length - 1;
                   const isReached = idx <= progressIdx;
-                  const isCompleted =
-                    idx < progressIdx || (isLast && isReached);
+                  const isCompleted = idx < progressIdx || (isLast && isReached);
                   return (
                     <Fragment key={step.status}>
                       <div className="flex flex-col items-center">
@@ -333,14 +580,15 @@ function BookingStatusContent() {
           )}
 
           {/* Status Card */}
-          <div className={`rounded-2xl border ${STATUS_CONFIG[booking.status].border} ${STATUS_CONFIG[booking.status].bg} p-4 sm:p-6`}>
+          <div
+            className={`rounded-2xl border ${STATUS_CONFIG[booking.status].border} ${STATUS_CONFIG[booking.status].bg} p-4 sm:p-6`}
+          >
             <div className="mb-4 flex items-center gap-3">
-              {STATUS_CONFIG[booking.status].icon}
-              <div>
-                <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CONFIG[booking.status].badge}`}>
-                  {BOOKING_STATUS_LABELS[booking.status]}
-                </span>
-              </div>
+              <span
+                className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CONFIG[booking.status].badge}`}
+              >
+                {BOOKING_STATUS_LABELS[booking.status]}
+              </span>
             </div>
 
             <div className="space-y-3 rounded-xl bg-white p-4 shadow-sm">
@@ -350,8 +598,22 @@ function BookingStatusContent() {
               <Row label="Attendees" value={String(booking.numberOfAttendees)} />
               <Row
                 label="Date"
-                value={format(new Date(booking.date), "EEEE, MMMM d, yyyy")}
+                value={
+                  booking.previousDate
+                    ? `${format(new Date(booking.date), "EEEE, MMMM d, yyyy")} (changed from ${format(new Date(booking.previousDate), "MMM d")})`
+                    : format(new Date(booking.date), "EEEE, MMMM d, yyyy")
+                }
               />
+              {booking.status === "DATE_CHANGE_REQUESTED" &&
+                booking.requestedNewDate && (
+                  <Row
+                    label="Requested Date"
+                    value={format(
+                      new Date(booking.requestedNewDate),
+                      "EEEE, MMMM d, yyyy"
+                    )}
+                  />
+                )}
               <Row
                 label="Submitted"
                 value={format(new Date(booking.createdAt), "MMM d, yyyy h:mm a")}
@@ -359,27 +621,95 @@ function BookingStatusContent() {
               {booking.adminNote && (
                 <div className="border-t border-gray-100 pt-3">
                   <p className="text-xs font-medium text-gray-500">Admin Note</p>
-                  <p className="mt-1 text-sm text-gray-700">
-                    {booking.adminNote}
-                  </p>
+                  <p className="mt-1 text-sm text-gray-700">{booking.adminNote}</p>
                 </div>
               )}
             </div>
           </div>
 
+          {/* Customer Actions */}
+          {accessLevel === "full" &&
+            (canDirectCancel ||
+              canRequestCancel ||
+              canDirectDateChange ||
+              canRequestDateChange ||
+              canWithdrawRequest ||
+              showCalendarPicker) && (
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+                <h3 className="mb-3 text-sm font-semibold text-gray-900">
+                  Booking Actions
+                </h3>
+                {actionError && (
+                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {actionError}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {showCalendarPicker && (
+                    <button
+                      onClick={() => openDateModal("pick")}
+                      disabled={actionLoading !== null}
+                      className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                    >
+                      Pick a new date
+                    </button>
+                  )}
+                  {canDirectDateChange && (
+                    <button
+                      onClick={() => openDateModal("direct")}
+                      disabled={actionLoading !== null}
+                      className="rounded-lg border border-purple-300 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-800 hover:bg-purple-100 disabled:opacity-50"
+                    >
+                      Change event date
+                    </button>
+                  )}
+                  {canRequestDateChange && (
+                    <button
+                      onClick={() => openDateModal("request")}
+                      disabled={actionLoading !== null}
+                      className="rounded-lg border border-purple-300 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-800 hover:bg-purple-100 disabled:opacity-50"
+                    >
+                      Request date change
+                    </button>
+                  )}
+                  {(canDirectCancel || canRequestCancel) && (
+                    <button
+                      onClick={openCancelModal}
+                      disabled={actionLoading !== null}
+                      className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {canRequestCancel
+                        ? "Request cancellation"
+                        : "Cancel booking"}
+                    </button>
+                  )}
+                  {canWithdrawRequest && (
+                    <button
+                      onClick={() => callAction("withdraw_request")}
+                      disabled={actionLoading !== null}
+                      className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {actionLoading === "withdraw_request"
+                        ? "Withdrawing..."
+                        : "Withdraw request"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
           {/* Unlock Section (when basic access) */}
-          {accessLevel === "basic" && (
+          {accessLevel === "basic" && !authToken && (
             <div className="rounded-2xl border border-brand-200 bg-brand-50 p-4 sm:p-6">
               <div className="mb-3 flex items-center gap-2">
-                <svg className="h-5 w-5 text-brand-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
                 <h3 className="text-sm font-semibold text-brand-900">
                   Unlock Full Access
                 </h3>
               </div>
               <p className="mb-3 text-xs text-brand-800">
-                Enter your secret code to access quotation details, discussion, and bill download.
+                Enter your secret code to access quotation details, discussion,
+                bill download, and booking actions. (Newer bookings use a private
+                link emailed/sent to you instead.)
               </p>
               <form onSubmit={handleUnlock} className="flex gap-2">
                 <input
@@ -406,13 +736,11 @@ function BookingStatusContent() {
             </div>
           )}
 
-          {/* Quotation (full access only) */}
+          {/* Quotation */}
           {fullBooking?.quotation && (
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:p-6">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-blue-900">
-                  Quotation
-                </h3>
+                <h3 className="text-sm font-semibold text-blue-900">Quotation</h3>
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
                     fullBooking.quotation.status === "FINALIZED"
@@ -442,11 +770,10 @@ function BookingStatusContent() {
                   </thead>
                   <tbody>
                     {fullBooking.quotation.items.map((item, idx) => (
-                      <tr
-                        key={item.id || idx}
-                        className="border-b border-gray-50"
-                      >
-                        <td className="px-2 py-2 align-top text-gray-400 sm:px-4">{idx + 1}</td>
+                      <tr key={item.id || idx} className="border-b border-gray-50">
+                        <td className="px-2 py-2 align-top text-gray-400 sm:px-4">
+                          {idx + 1}
+                        </td>
                         <td className="break-words px-2 py-2 text-gray-800 sm:px-4">
                           {item.particular}
                           {item.quantity && item.unit && (
@@ -456,18 +783,24 @@ function BookingStatusContent() {
                           )}
                         </td>
                         <td className="whitespace-nowrap px-2 py-2 text-right align-top font-medium text-gray-900 sm:px-4">
-                          {item.amount ? `₹${item.amount.toLocaleString("en-IN")}` : "—"}
+                          {item.amount
+                            ? `₹${item.amount.toLocaleString("en-IN")}`
+                            : "—"}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-gray-200 bg-gray-50">
-                      <td colSpan={2} className="px-2 py-2 font-semibold text-gray-900 sm:px-4">
+                      <td
+                        colSpan={2}
+                        className="px-2 py-2 font-semibold text-gray-900 sm:px-4"
+                      >
                         Total
                       </td>
                       <td className="whitespace-nowrap px-2 py-2 text-right font-bold text-gray-900 sm:px-4">
-                        &#8377;{fullBooking.quotation.totalAmount.toLocaleString("en-IN")}
+                        &#8377;
+                        {fullBooking.quotation.totalAmount.toLocaleString("en-IN")}
                       </td>
                     </tr>
                     {fullBooking.quotation.advanceAmount > 0 && (
@@ -477,11 +810,17 @@ function BookingStatusContent() {
                             Advance
                           </td>
                           <td className="whitespace-nowrap px-2 py-1 text-right font-medium text-gray-700 sm:px-4">
-                            &#8377;{fullBooking.quotation.advanceAmount.toLocaleString("en-IN")}
+                            &#8377;
+                            {fullBooking.quotation.advanceAmount.toLocaleString(
+                              "en-IN"
+                            )}
                           </td>
                         </tr>
                         <tr>
-                          <td colSpan={2} className="px-2 py-1 font-semibold text-brand-800 sm:px-4">
+                          <td
+                            colSpan={2}
+                            className="px-2 py-1 font-semibold text-brand-800 sm:px-4"
+                          >
                             Balance
                           </td>
                           <td className="whitespace-nowrap px-2 py-1 text-right font-bold text-brand-800 sm:px-4">
@@ -520,7 +859,7 @@ function BookingStatusContent() {
             </div>
           )}
 
-          {/* Payment Summary for Approved Bookings (full access only) */}
+          {/* Payment Summary for Approved Bookings */}
           {fullBooking &&
             fullBooking.status === "APPROVED" &&
             fullBooking.totalAmount != null && (
@@ -538,7 +877,8 @@ function BookingStatusContent() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Advance Received</span>
                     <span className="font-semibold text-gray-900">
-                      &#8377;{(fullBooking.advanceAmount ?? 0).toLocaleString("en-IN")}
+                      &#8377;
+                      {(fullBooking.advanceAmount ?? 0).toLocaleString("en-IN")}
                     </span>
                   </div>
                   <div className="flex justify-between border-t border-gray-100 pt-2 text-sm">
@@ -563,16 +903,12 @@ function BookingStatusContent() {
               </div>
             )}
 
-          {/* Discussion Thread (full access only) */}
+          {/* Discussion Thread */}
           {accessLevel === "full" && fullBooking && (
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-900">
-                <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
                 Discussion
               </h3>
-
               <div className="mb-4 max-h-72 space-y-2 overflow-y-auto rounded-lg bg-gray-50 p-3">
                 {fullBooking.comments.length === 0 ? (
                   <p className="py-6 text-center text-xs text-gray-400">
@@ -591,7 +927,7 @@ function BookingStatusContent() {
                             : "bg-white text-gray-800 shadow-sm"
                         }`}
                       >
-                        <p className="text-xs font-medium opacity-75 mb-0.5">
+                        <p className="mb-0.5 text-xs font-medium opacity-75">
                           {c.sender === "CUSTOMER" ? "You" : "Admin"}
                         </p>
                         <p>{c.message}</p>
@@ -603,7 +939,6 @@ function BookingStatusContent() {
                   ))
                 )}
               </div>
-
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -630,6 +965,155 @@ function BookingStatusContent() {
           )}
         </div>
       )}
+
+      {/* Cancel modal */}
+      {cancelModalOpen && booking && (
+        <ModalShell title="Cancel Booking" onClose={() => setCancelModalOpen(false)}>
+          <p className="mb-3 text-sm text-gray-700">
+            {booking.status === "APPROVED"
+              ? "Your booking is already approved. Submitting a cancellation request will notify the admin, who will review and respond."
+              : "This will cancel your booking and free the date for other customers. You can submit a fresh booking any time."}
+          </p>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            Reason{booking.status === "APPROVED" ? " (required)" : " (optional)"}
+          </label>
+          <textarea
+            rows={3}
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
+            placeholder="Let us know why..."
+          />
+          {actionError && (
+            <p className="mt-2 text-xs text-red-600">{actionError}</p>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              onClick={() => setCancelModalOpen(false)}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Close
+            </button>
+            <button
+              onClick={onConfirmCancel}
+              disabled={actionLoading !== null}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {actionLoading
+                ? "..."
+                : booking.status === "APPROVED"
+                  ? "Submit cancellation request"
+                  : "Confirm cancellation"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
+
+      {/* Date-change modal */}
+      {dateModalOpen && booking && (
+        <ModalShell
+          title={
+            dateModalMode === "pick"
+              ? "Pick a new date"
+              : dateModalMode === "request"
+                ? "Request date change"
+                : "Change event date"
+          }
+          onClose={() => setDateModalOpen(false)}
+        >
+          <p className="mb-3 text-sm text-gray-700">
+            {dateModalMode === "request"
+              ? "Your booking is already approved. Submit a request and the admin will review."
+              : "Pick a new date from the calendar below. Greyed-out dates are unavailable."}
+          </p>
+          <Calendar
+            selectedDate={newDate}
+            onDateSelect={setNewDate}
+            disabledDates={disabledDates}
+          />
+          <label className="mb-1 mt-3 block text-xs font-medium text-gray-700">
+            Reason{dateModalMode === "request" ? " (required)" : " (optional)"}
+          </label>
+          <textarea
+            rows={2}
+            value={dateReason}
+            onChange={(e) => setDateReason(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500"
+            placeholder="Optional context for the admin..."
+          />
+          {actionError && (
+            <p className="mt-2 text-xs text-red-600">{actionError}</p>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              onClick={() => setDateModalOpen(false)}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Close
+            </button>
+            <button
+              onClick={onConfirmDateChange}
+              disabled={!newDate || actionLoading !== null}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+            >
+              {actionLoading
+                ? "..."
+                : dateModalMode === "request"
+                  ? "Submit request"
+                  : "Confirm new date"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
+    </div>
+  );
+}
+
+function ModalShell({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-3 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

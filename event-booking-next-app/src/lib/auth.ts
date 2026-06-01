@@ -1,54 +1,67 @@
-import { createHmac } from "crypto";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceClient,
+} from "@/lib/supabase-server";
 
-const COOKIE_NAME = "admin_token";
-const TOKEN_TTL_HOURS = 8;
+/**
+ * Returns true if the current request carries either:
+ *   (a) a valid Supabase session cookie (web admin), OR
+ *   (b) an `Authorization: Bearer <jwt>` access token (RN admin, Phase 5)
+ * AND the corresponding user is a member of the `admin_users` table.
+ *
+ * Kept as `Promise<boolean>` so every existing /api/admin/* handler keeps
+ * working unchanged.
+ */
+export async function getAdminSession(): Promise<boolean> {
+  const userId = await resolveAuthenticatedUserId();
+  if (!userId) return false;
 
-function getSecret(): string {
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) throw new Error("ADMIN_SECRET is not configured");
-  return secret;
-}
+  const service = createSupabaseServiceClient();
+  const { data, error } = await service
+    .from("admin_users")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
 
-function sign(payload: string, secret: string): string {
-  return createHmac("sha256", secret).update(payload).digest("hex");
-}
-
-export function createToken(): string {
-  const exp = Date.now() + TOKEN_TTL_HOURS * 60 * 60 * 1000;
-  const payload = Buffer.from(JSON.stringify({ exp })).toString("base64url");
-  const signature = sign(payload, getSecret());
-  return `${payload}.${signature}`;
-}
-
-export function verifyToken(token: string): boolean {
-  try {
-    const [payload, signature] = token.split(".");
-    if (!payload || !signature) return false;
-
-    const expectedSig = sign(payload, getSecret());
-    if (signature !== expectedSig) return false;
-
-    const data = JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf-8")
-    );
-    if (typeof data.exp !== "number" || Date.now() > data.exp) return false;
-
-    return true;
-  } catch {
+  if (error) {
+    console.error("admin_users lookup failed:", error);
     return false;
   }
+  return !!data;
 }
 
-export function verifyPassword(password: string): boolean {
-  return password === process.env.ADMIN_PASSWORD;
+async function resolveAuthenticatedUserId(): Promise<string | null> {
+  const bearerUserId = await resolveBearerUserId();
+  if (bearerUserId) return bearerUserId;
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
 }
 
-export async function getAdminSession(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  if (!token) return false;
-  return verifyToken(token);
-}
+async function resolveBearerUserId(): Promise<string | null> {
+  const headerStore = await headers();
+  const authHeader = headerStore.get("authorization");
+  if (!authHeader?.toLowerCase().startsWith("bearer ")) return null;
 
-export { COOKIE_NAME, TOKEN_TTL_HOURS };
+  const accessToken = authHeader.slice(7).trim();
+  if (!accessToken) return null;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) return null;
+
+  const client = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+  });
+
+  const {
+    data: { user },
+  } = await client.auth.getUser(accessToken);
+  return user?.id ?? null;
+}

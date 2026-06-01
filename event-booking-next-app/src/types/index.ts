@@ -10,6 +10,12 @@ export const bookingSchema = z.object({
     .min(10, "Phone number must be at least 10 digits")
     .max(15, "Phone number must be at most 15 digits")
     .regex(/^[0-9+\-\s()]+$/, "Invalid phone number format"),
+  email: z
+    .string()
+    .email("Invalid email address")
+    .max(254, "Email is too long")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   eventType: z.enum(
     ["wedding", "reception", "birthday", "corporate", "engagement", "other"],
     { message: "Please select an event type" }
@@ -23,6 +29,8 @@ export const bookingSchema = z.object({
     .min(1, "At least 1 attendee required")
     .max(2000, "Maximum 2000 attendees"),
   notes: z.string().max(500).optional(),
+  notifyViaWhatsapp: z.boolean().default(true),
+  notifyViaEmail: z.boolean().default(false),
 });
 
 export type BookingFormData = z.infer<typeof bookingSchema>;
@@ -41,7 +49,11 @@ export type BookingStatus =
   | "QUOTATION_SENT"
   | "QUOTATION_FINALIZED"
   | "APPROVED"
-  | "REJECTED";
+  | "REJECTED"
+  | "CANCELLATION_REQUESTED"
+  | "DATE_CHANGE_REQUESTED"
+  | "CONFLICTED"
+  | "CANCELLED";
 
 export type QuotationStatus = "DRAFT" | "SENT" | "FINALIZED";
 export type CommentSender = "ADMIN" | "CUSTOMER";
@@ -80,6 +92,7 @@ export interface BookingRecord {
   bookingId: string;
   name: string;
   phone: string;
+  email: string | null;
   date: string;
   eventType: string;
   numberOfAttendees: number;
@@ -88,6 +101,22 @@ export interface BookingRecord {
   adminNote: string | null;
   totalAmount: number | null;
   advanceAmount: number | null;
+  notifyViaWhatsapp: boolean;
+  notifyViaEmail: boolean;
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  pendingRequestDecidedAt: string | null;
+  requestedNewDate: string | null;
+  dateChangeReason: string | null;
+  previousDate: string | null;
+  dateChangeAcknowledged: boolean;
+  conflictedAt: string | null;
+  conflictingBookingId: string | null;
+  conflictWinner?: {
+    bookingId: string;
+    name: string;
+    date: string;
+  } | null;
   comments: BookingComment[];
   quotation?: QuotationData | null;
   createdAt: string;
@@ -110,7 +139,32 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   QUOTATION_FINALIZED: "Quotation Finalized",
   APPROVED: "Approved",
   REJECTED: "Rejected",
+  CANCELLATION_REQUESTED: "Cancellation Requested",
+  DATE_CHANGE_REQUESTED: "Date Change Requested",
+  CONFLICTED: "Date Conflict",
+  CANCELLED: "Cancelled",
 };
+
+/**
+ * Booking is in a terminal state (no further transitions allowed).
+ */
+export const TERMINAL_BOOKING_STATUSES = ["CANCELLED", "REJECTED"] as const;
+
+/**
+ * Booking is pending admin decision (admin actions available).
+ */
+export const ADMIN_DECISION_STATUSES = [
+  "CANCELLATION_REQUESTED",
+  "DATE_CHANGE_REQUESTED",
+] as const;
+
+export type CustomerBookingAction =
+  | "cancel"
+  | "request_cancel"
+  | "withdraw_request"
+  | "change_date"
+  | "request_date_change"
+  | "pick_new_date";
 
 export function getZodErrorMessage(error: z.ZodError): string {
   const issues = error.issues;

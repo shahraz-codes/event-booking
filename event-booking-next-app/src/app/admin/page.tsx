@@ -5,23 +5,23 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Calendar, { useCalendarData } from "@/components/Calendar";
 import { EVENT_TYPES, BOOKING_STATUS_LABELS } from "@/types";
-import type { BookingComment, QuotationData, QuotationItemData } from "@/types";
+import type {
+  BookingComment,
+  QuotationData,
+  QuotationItemData,
+  BookingStatus,
+} from "@/types";
 import { format } from "date-fns";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
-
-type BookingStatus =
-  | "PENDING"
-  | "QUOTATION_SENT"
-  | "QUOTATION_FINALIZED"
-  | "APPROVED"
-  | "REJECTED";
+import WhatsAppNotifyButton from "@/components/WhatsAppNotifyButton";
 
 interface Booking {
   id: string;
   bookingId: string;
   name: string;
   phone: string;
+  email: string | null;
   date: string;
   eventType: string;
   numberOfAttendees: number;
@@ -30,6 +30,22 @@ interface Booking {
   adminNote: string | null;
   totalAmount: number | null;
   advanceAmount: number | null;
+  notifyViaWhatsapp: boolean;
+  notifyViaEmail: boolean;
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  pendingRequestDecidedAt: string | null;
+  requestedNewDate: string | null;
+  dateChangeReason: string | null;
+  previousDate: string | null;
+  dateChangeAcknowledged: boolean;
+  conflictedAt: string | null;
+  conflictingBookingId: string | null;
+  conflictWinner?: {
+    bookingId: string;
+    name: string;
+    date: string;
+  } | null;
   comments: BookingComment[];
   quotation?: QuotationData | null;
   createdAt: string;
@@ -41,14 +57,18 @@ interface BlockedDate {
   reason: string | null;
 }
 
-const TABS = [
-  { key: "all", label: "All" },
+const STATUS_FILTERS: { key: string; label: string }[] = [
+  { key: "all", label: "All statuses" },
   { key: "PENDING", label: "Pending" },
   { key: "QUOTATION_SENT", label: "Quotation Sent" },
   { key: "QUOTATION_FINALIZED", label: "Finalized" },
   { key: "APPROVED", label: "Approved" },
+  { key: "CANCELLATION_REQUESTED", label: "Cancellation Requests" },
+  { key: "DATE_CHANGE_REQUESTED", label: "Date Change Requests" },
+  { key: "CONFLICTED", label: "Conflicts" },
   { key: "REJECTED", label: "Rejected" },
-] as const;
+  { key: "CANCELLED", label: "Cancelled" },
+];
 
 const EMPTY_ITEM: QuotationItemData = {
   particular: "",
@@ -58,6 +78,37 @@ const EMPTY_ITEM: QuotationItemData = {
   amount: 0,
   order: 0,
 };
+
+/**
+ * Suggests the most appropriate event type for a quick click-to-WhatsApp
+ * based on the booking's current status. Used by the inline notify button
+ * so admin doesn't have to pick the template manually.
+ */
+function pickEventForStatus(
+  status: BookingStatus
+): import("@/lib/notification-channel").NotificationEventType {
+  switch (status) {
+    case "QUOTATION_SENT":
+      return "booking.quotation_sent";
+    case "QUOTATION_FINALIZED":
+      return "booking.quotation_finalized";
+    case "APPROVED":
+      return "booking.approved";
+    case "REJECTED":
+      return "booking.rejected";
+    case "CANCELLED":
+      return "booking.cancelled_by_admin";
+    case "CANCELLATION_REQUESTED":
+      return "booking.cancellation_requested";
+    case "DATE_CHANGE_REQUESTED":
+      return "booking.date_change_requested";
+    case "CONFLICTED":
+      return "booking.conflicted";
+    case "PENDING":
+    default:
+      return "booking.comment_added";
+  }
+}
 
 export default function AdminPage() {
   return (
@@ -80,8 +131,9 @@ function AdminPageContent() {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
-  const [activeTab, setActiveTab] = useState<string>("all");
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -126,7 +178,8 @@ function AdminPageContent() {
   const fetchBookings = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (activeTab !== "all") params.set("status", activeTab);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (searchQuery) params.set("q", searchQuery);
       params.set("page", String(page));
       params.set("pageSize", String(pageSize));
       const res = await fetch(`/api/admin/bookings?${params.toString()}`);
@@ -144,7 +197,7 @@ function AdminPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, page, pageSize]);
+  }, [statusFilter, searchQuery, page, pageSize]);
 
   const fetchBlocked = useCallback(async () => {
     try {
@@ -158,7 +211,15 @@ function AdminPageContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [activeTab, pageSize]);
+  }, [statusFilter, searchQuery, pageSize]);
+
+  // Debounce search input so we don't refetch on every keystroke.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
 
   useEffect(() => {
     setLoading(true);
@@ -171,10 +232,39 @@ function AdminPageContent() {
 
   // ─── Booking Actions ────────────────────────────────────
 
+  type AdminAction =
+    | "approve"
+    | "reject"
+    | "cancel"
+    | "approveCancellation"
+    | "declineCancellation"
+    | "approveDateChange"
+    | "declineDateChange"
+    | "acknowledgeDateChange"
+    | "forceResolveConflict";
+
+  const successMessages: Record<AdminAction, string> = {
+    approve: "Booking approved",
+    reject: "Booking rejected",
+    cancel: "Booking cancelled",
+    approveCancellation: "Cancellation approved",
+    declineCancellation: "Cancellation request declined",
+    approveDateChange: "Date change approved",
+    declineDateChange: "Date change request declined",
+    acknowledgeDateChange: "Date change acknowledged",
+    forceResolveConflict: "Conflict resolved",
+  };
+
   const handleAction = async (
     id: string,
-    action: "approve" | "reject" | "cancel",
-    extra?: { totalAmount: number; advanceAmount: number; adminNote?: string }
+    action: AdminAction,
+    extra?: {
+      totalAmount?: number;
+      advanceAmount?: number;
+      adminNote?: string;
+      conflictAction?: "force_cancel" | "reset_to_pending";
+      newDate?: string;
+    }
   ) => {
     setActionLoading(id);
     try {
@@ -187,6 +277,10 @@ function AdminPageContent() {
         payload.totalAmount = extra.totalAmount;
         payload.advanceAmount = extra.advanceAmount;
       }
+      if (action === "forceResolveConflict" && extra) {
+        payload.conflictAction = extra.conflictAction;
+        payload.newDate = extra.newDate;
+      }
       const res = await fetch("/api/admin/bookings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -194,10 +288,17 @@ function AdminPageContent() {
       });
       const json = await res.json();
       if (json.success) {
-        toast(
-          "success",
-          `Booking ${action === "cancel" ? "cancelled" : `${action}d`} successfully`
-        );
+        toast("success", successMessages[action]);
+        if (
+          action === "approve" &&
+          Array.isArray(json.data?.cascadedBookingIds) &&
+          json.data.cascadedBookingIds.length > 0
+        ) {
+          toast(
+            "success",
+            `${json.data.cascadedBookingIds.length} other booking(s) on the same date were moved to CONFLICTED`
+          );
+        }
         setApprovalTarget(null);
         setApprovalForm({ totalAmount: "", advanceAmount: "", adminNote: "" });
         fetchBookings();
@@ -464,6 +565,10 @@ function AdminPageContent() {
       QUOTATION_FINALIZED: "bg-indigo-100 text-indigo-800",
       APPROVED: "bg-green-100 text-green-800",
       REJECTED: "bg-red-100 text-red-800",
+      CANCELLATION_REQUESTED: "bg-orange-100 text-orange-800",
+      DATE_CHANGE_REQUESTED: "bg-purple-100 text-purple-800",
+      CONFLICTED: "bg-rose-100 text-rose-800",
+      CANCELLED: "bg-gray-200 text-gray-700",
     };
     return (
       <span
@@ -475,7 +580,10 @@ function AdminPageContent() {
   };
 
   const canCreateOrEditQuotation = (b: Booking) =>
-    b.status !== "APPROVED" && b.status !== "REJECTED";
+    b.status !== "APPROVED" &&
+    b.status !== "REJECTED" &&
+    b.status !== "CANCELLED" &&
+    b.status !== "CONFLICTED";
 
   const canApprove = (b: Booking) =>
     b.status === "PENDING" ||
@@ -512,130 +620,85 @@ function AdminPageContent() {
       <div className="grid gap-6 sm:gap-8 xl:grid-cols-3">
         {/* Bookings List */}
         <div className="xl:col-span-2">
-          {/* Mobile: Filter button */}
-          <div className="mb-4 sm:hidden">
-            <button
-              type="button"
-              onClick={() => setFilterModalOpen(true)}
-              className="flex w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-            >
-              <span className="flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 text-gray-500"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                  />
-                </svg>
-                <span>Filter</span>
-                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-900">
-                  {TABS.find((t) => t.key === activeTab)?.label ?? "All"}
-                </span>
-              </span>
+          {/* Search + status filter */}
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
               <svg
-                className="h-4 w-4 text-gray-400"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={2}
+                aria-hidden="true"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
+                />
               </svg>
-            </button>
-          </div>
-
-          {/* Desktop: Horizontal tabs */}
-          <div className="mb-4 hidden sm:block">
-            <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
-              {TABS.map((tab) => (
+              <input
+                type="search"
+                inputMode="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search by booking ID or customer name"
+                className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-9 pr-9 text-sm text-gray-900 placeholder-gray-400 shadow-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                aria-label="Search bookings"
+              />
+              {searchInput && (
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    activeTab === tab.key
-                      ? "bg-white text-brand-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
                 >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Mobile filter modal */}
-          {filterModalOpen && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Filter bookings"
-              className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:hidden"
-              onClick={() => setFilterModalOpen(false)}
-            >
-              <div
-                className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-gray-900">
-                    Filter by status
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setFilterModalOpen(false)}
-                    aria-label="Close"
-                    className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100"
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
                   >
-                    <svg
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {TABS.map((tab) => (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => {
-                        setActiveTab(tab.key);
-                        setFilterModalOpen(false);
-                      }}
-                      className={`flex items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
-                        activeTab === tab.key
-                          ? "bg-brand-50 text-brand-900"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span>{tab.label}</span>
-                      {activeTab === tab.key && (
-                        <svg
-                          className="h-5 w-5 text-brand-700"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
-          )}
+
+            <label className="sm:w-56">
+              <span className="sr-only">Filter by status</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                aria-label="Filter by status"
+              >
+                {STATUS_FILTERS.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {(statusFilter !== "all" || searchInput) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setSearchInput("");
+                }}
+                className="self-start rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 sm:self-auto"
+              >
+                Clear
+              </button>
+            )}
+          </div>
 
           {/* Pagination (above the list) */}
           {!loading && totalBookings > 0 && (
@@ -775,9 +838,28 @@ function AdminPageContent() {
                     </div>
                     <div>
                       <p className="text-gray-500">Date</p>
-                      <p className="font-medium text-gray-900">
-                        {format(new Date(b.date), "MMM d, yyyy")}
-                      </p>
+                      {b.previousDate ? (
+                        <p className="font-medium text-gray-900">
+                          <span className="text-gray-400 line-through">
+                            {format(new Date(b.previousDate), "MMM d")}
+                          </span>{" "}
+                          → {format(new Date(b.date), "MMM d, yyyy")}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleAction(b.id, "acknowledgeDateChange")
+                            }
+                            className="ml-1 text-[10px] font-semibold text-brand-700 hover:underline"
+                            title="Mark this date change as acknowledged"
+                          >
+                            Ack
+                          </button>
+                        </p>
+                      ) : (
+                        <p className="font-medium text-gray-900">
+                          {format(new Date(b.date), "MMM d, yyyy")}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-gray-500">Attendees</p>
@@ -803,6 +885,237 @@ function AdminPageContent() {
                     <p className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
                       <span className="font-medium">Admin:</span> {b.adminNote}
                     </p>
+                  )}
+
+                  {/* Phase 4b - Cancellation request panel */}
+                  {b.status === "CANCELLATION_REQUESTED" && (
+                    <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3">
+                      <h4 className="text-xs font-semibold text-orange-900">
+                        Cancellation requested by customer
+                      </h4>
+                      {b.cancellationReason && (
+                        <p className="mt-1 text-xs text-orange-800">
+                          Reason: {b.cancellationReason}
+                        </p>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            handleAction(b.id, "approveCancellation", {
+                              adminNote: noteInput[b.id] || "",
+                            })
+                          }
+                          disabled={actionLoading === b.id}
+                          className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
+                        >
+                          Approve cancellation
+                        </button>
+                        <button
+                          onClick={() => {
+                            const reason = noteInput[b.id]?.trim();
+                            if (!reason) {
+                              toast(
+                                "error",
+                                "Please enter a reason in the note field before declining"
+                              );
+                              return;
+                            }
+                            handleAction(b.id, "declineCancellation", {
+                              adminNote: reason,
+                            });
+                          }}
+                          disabled={actionLoading === b.id}
+                          className="rounded-md border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-800 hover:bg-orange-100 disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+                        <input
+                          type="text"
+                          placeholder="Admin note (required to decline)"
+                          value={noteInput[b.id] || ""}
+                          onChange={(e) =>
+                            setNoteInput({
+                              ...noteInput,
+                              [b.id]: e.target.value,
+                            })
+                          }
+                          className="flex-1 min-w-[160px] rounded-md border border-orange-200 px-2 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 4c - Date change request panel */}
+                  {b.status === "DATE_CHANGE_REQUESTED" && (
+                    <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-3">
+                      <h4 className="text-xs font-semibold text-purple-900">
+                        Date change requested
+                      </h4>
+                      <p className="mt-1 text-xs text-purple-800">
+                        <span className="line-through">
+                          {format(new Date(b.date), "MMM d, yyyy")}
+                        </span>{" "}
+                        →{" "}
+                        <strong>
+                          {b.requestedNewDate
+                            ? format(new Date(b.requestedNewDate), "MMM d, yyyy")
+                            : "—"}
+                        </strong>
+                      </p>
+                      {b.dateChangeReason && (
+                        <p className="mt-1 text-xs text-purple-800">
+                          Reason: {b.dateChangeReason}
+                        </p>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            handleAction(b.id, "approveDateChange", {
+                              adminNote: noteInput[b.id] || "",
+                            })
+                          }
+                          disabled={actionLoading === b.id}
+                          className="rounded-md bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          Approve date change
+                        </button>
+                        <button
+                          onClick={() => {
+                            const reason = noteInput[b.id]?.trim();
+                            if (!reason) {
+                              toast(
+                                "error",
+                                "Please enter a reason in the note field before declining"
+                              );
+                              return;
+                            }
+                            handleAction(b.id, "declineDateChange", {
+                              adminNote: reason,
+                            });
+                          }}
+                          disabled={actionLoading === b.id}
+                          className="rounded-md border border-purple-300 bg-white px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-100 disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+                        <input
+                          type="text"
+                          placeholder="Admin note (required to decline)"
+                          value={noteInput[b.id] || ""}
+                          onChange={(e) =>
+                            setNoteInput({
+                              ...noteInput,
+                              [b.id]: e.target.value,
+                            })
+                          }
+                          className="flex-1 min-w-[160px] rounded-md border border-purple-200 px-2 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 4d - Conflict resolution panel */}
+                  {b.status === "CONFLICTED" && (
+                    <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                      <h4 className="text-xs font-semibold text-rose-900">
+                        Date was given to another booking
+                      </h4>
+                      {b.conflictWinner && (
+                        <p className="mt-1 text-xs text-rose-800">
+                          Confirmed for{" "}
+                          <span className="font-mono">
+                            {b.conflictWinner.bookingId}
+                          </span>{" "}
+                          ({b.conflictWinner.name})
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-rose-700">
+                        Coordinate with the customer (WhatsApp/phone). When
+                        you have a new date, use the controls below.
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <input
+                          type="date"
+                          min={format(new Date(), "yyyy-MM-dd")}
+                          value={noteInput[`${b.id}::date`] || ""}
+                          onChange={(e) =>
+                            setNoteInput({
+                              ...noteInput,
+                              [`${b.id}::date`]: e.target.value,
+                            })
+                          }
+                          className="rounded-md border border-rose-200 px-2 py-1 text-xs"
+                        />
+                        <button
+                          onClick={() => {
+                            const newDate = noteInput[`${b.id}::date`];
+                            if (!newDate) {
+                              toast(
+                                "error",
+                                "Pick a new date first to reset this booking to pending"
+                              );
+                              return;
+                            }
+                            handleAction(b.id, "forceResolveConflict", {
+                              conflictAction: "reset_to_pending",
+                              newDate,
+                              adminNote: noteInput[b.id] || "",
+                            });
+                          }}
+                          disabled={actionLoading === b.id}
+                          className="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+                        >
+                          Reset with new date
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleAction(b.id, "forceResolveConflict", {
+                              conflictAction: "force_cancel",
+                              adminNote: noteInput[b.id] || "",
+                            })
+                          }
+                          disabled={actionLoading === b.id}
+                          className="rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                        >
+                          Force cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 4c QUOTATION_FINALIZED + date change banner */}
+                  {b.previousDate &&
+                    b.status === "QUOTATION_FINALIZED" &&
+                    !b.dateChangeAcknowledged && (
+                      <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-xs text-yellow-900">
+                        Date changed after quotation was finalized — review
+                        pricing before re-issuing or keep the current quotation.
+                      </div>
+                    )}
+
+                  {/* Phase 8 v1 - WhatsApp click-to-notify */}
+                  {b.notifyViaWhatsapp && b.phone && (
+                    <div className="mb-3">
+                      <WhatsAppNotifyButton
+                        booking={{
+                          name: b.name,
+                          phone: b.phone,
+                          email: b.email,
+                          notifyViaWhatsapp: b.notifyViaWhatsapp,
+                          notifyViaEmail: b.notifyViaEmail,
+                          bookingId: b.bookingId,
+                          date: b.date,
+                        }}
+                        event={pickEventForStatus(b.status)}
+                        amount={
+                          b.totalAmount
+                            ? `₹${b.totalAmount.toLocaleString("en-IN")}`
+                            : undefined
+                        }
+                        reason={b.adminNote ?? undefined}
+                        variant="inline"
+                      />
+                    </div>
                   )}
 
                   {/* Existing Quotation Summary */}
