@@ -163,8 +163,8 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
         <View style={styles.header}>
           <Text style={styles.title}>{APP_NAME}</Text>
           <Text style={styles.subtitle}>
-            9-4-86/227, AR Center, 5th &amp; 6th Floor, Tolichowki Road,
-            Hyderabad, Telangana 500008
+            10-3-304, c/6, Masab Tank Road, beside mujtaba jewelers, above HDFC BANK
+            NMDC Colony, Masab Tank, Hyderabad, Telangana 500006
           </Text>
         </View>
 
