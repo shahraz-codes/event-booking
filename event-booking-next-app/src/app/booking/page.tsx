@@ -2,6 +2,7 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import Calendar, { useCalendarData } from "@/components/Calendar";
+import PhoneField from "@/components/PhoneField";
 import { EVENT_TYPES, bookingSchema, getZodErrorMessage } from "@/types";
 import Link from "next/link";
 
@@ -324,20 +325,14 @@ export default function BookingPage() {
               />
             </div>
 
-            <div>
-              <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Phone Number <span className="text-xs text-gray-400">(WhatsApp)</span>
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                placeholder="e.g. +91 98765 43210"
-              />
-            </div>
+            <PhoneField
+              label="Phone Number"
+              value={formData.phone || null}
+              onChange={(v) => setFormData({ ...formData, phone: v ?? "" })}
+              storageFormat="pretty"
+              required
+              id="phone"
+            />
 
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
