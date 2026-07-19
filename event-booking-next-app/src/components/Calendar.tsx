@@ -30,6 +30,8 @@ interface CalendarProps {
   disabledDates?: string[];
   readOnly?: boolean;
   dateInfo?: Record<string, CalendarDateBookings>;
+  /** UX-6: optional feedback when the user taps an unavailable day. */
+  onDisabledDateClick?: (date: string) => void;
 }
 
 export default function Calendar({
@@ -38,6 +40,7 @@ export default function Calendar({
   disabledDates = [],
   readOnly = false,
   dateInfo,
+  onDisabledDateClick,
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [hovered, setHovered] = useState<string | null>(null);
@@ -134,6 +137,11 @@ export default function Calendar({
             className="relative"
             onMouseEnter={() => hasInfo && setHovered(dateStr)}
             onMouseLeave={() => clearHover(dateStr)}
+            onClick={() => {
+              if (isDisabled && !readOnly && onDisabledDateClick && isCurrentMonth) {
+                onDisabledDateClick(dateStr);
+              }
+            }}
           >
             <button
               type="button"
@@ -141,6 +149,7 @@ export default function Calendar({
               onClick={() => !isDisabled && !readOnly && onDateSelect(dateStr)}
               onFocus={() => hasInfo && setHovered(dateStr)}
               onBlur={() => clearHover(dateStr)}
+              aria-label={format(cellDay, "EEEE, MMMM d, yyyy")}
               className={`relative aspect-square w-full rounded-lg p-1 text-sm font-medium transition-all ${
                 !isCurrentMonth
                   ? "text-gray-300"

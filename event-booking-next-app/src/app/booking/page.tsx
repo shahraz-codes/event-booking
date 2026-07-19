@@ -5,6 +5,7 @@ import Calendar, { useCalendarData } from "@/components/Calendar";
 import PhoneField from "@/components/PhoneField";
 import BookingQRCode from "@/components/BookingQRCode";
 import { EVENT_TYPES, bookingSchema, getZodErrorMessage } from "@/types";
+import { format } from "date-fns";
 import Link from "next/link";
 
 interface BookingResult {
@@ -38,6 +39,7 @@ export default function BookingPage() {
   const [result, setResult] = useState<BookingResult | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [unavailableNote, setUnavailableNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (result && typeof window !== "undefined") {
@@ -305,9 +307,22 @@ export default function BookingPage() {
           ) : (
             <Calendar
               selectedDate={selectedDate}
-              onDateSelect={setSelectedDate}
+              onDateSelect={(d) => {
+                setSelectedDate(d);
+                setUnavailableNote(null);
+              }}
               disabledDates={disabledDates}
+              onDisabledDateClick={(d) =>
+                setUnavailableNote(
+                  `${format(new Date(d + "T00:00:00"), "EEEE, MMMM d, yyyy")} is not available. Please choose another date.`
+                )
+              }
             />
+          )}
+          {unavailableNote && (
+            <p className="mt-3 text-sm text-amber-700" role="status">
+              {unavailableNote}
+            </p>
           )}
         </div>
 
@@ -402,7 +417,11 @@ export default function BookingPage() {
                 id="date-display"
                 type="text"
                 readOnly
-                value={selectedDate || ""}
+                value={
+                  selectedDate
+                    ? format(new Date(selectedDate + "T00:00:00"), "EEEE, MMMM d, yyyy")
+                    : ""
+                }
                 placeholder="Select from calendar"
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none"
               />

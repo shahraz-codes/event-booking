@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { useReducedMotion } from "framer-motion";
 
 interface CarouselImage {
   id: string;
@@ -16,6 +17,7 @@ interface HeroCarouselProps {
 export default function HeroCarousel({ images }: HeroCarouselProps) {
   const [current, setCurrent] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const reduce = useReducedMotion();
 
   const count = images.length;
 
@@ -34,10 +36,32 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
   }, [current, count, goTo]);
 
   useEffect(() => {
-    if (count <= 1) return;
-    const timer = setInterval(next, 5000);
-    return () => clearInterval(timer);
-  }, [next, count]);
+    // UX-2/UX-3: no autoplay for reduced-motion users, single-image carousels,
+    // or while the tab is backgrounded.
+    if (count <= 1 || reduce) return;
+
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (timer === null) timer = setInterval(next, 5000);
+    };
+    const stop = () => {
+      if (timer !== null) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") stop();
+      else start();
+    };
+
+    start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [next, count, reduce]);
 
   if (count === 0) return null;
 
@@ -89,9 +113,7 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
                 key={i}
                 onClick={() => goTo(i)}
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  i === current
-                    ? "w-6 bg-white"
-                    : "w-2 bg-white/50 hover:bg-white/70"
+                  i === current ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/70"
                 }`}
                 aria-label={`Go to slide ${i + 1}`}
               />
