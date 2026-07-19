@@ -55,7 +55,7 @@ export default async function RootLayout({
         <style dangerouslySetInnerHTML={{ __html: themeCss }} />
       </head>
       <body className="flex min-h-full flex-col font-sans">
-        <Navbar />
+        <Navbar logoUrl={settings.logoUrl} />
         <main className="flex-1">{children}</main>
         <Footer settings={settings} />
       </body>

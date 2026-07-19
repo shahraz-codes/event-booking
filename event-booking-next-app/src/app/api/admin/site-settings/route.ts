@@ -80,6 +80,19 @@ const settingsSchema = z
       .transform((v) => (v && v.length > 0 ? v : null)),
     aboutBlurb: optionalText(800, "About blurb"),
     metaDescription: optionalText(300, "Meta description"),
+    logoUrl: z
+      .string()
+      .trim()
+      .url("Logo URL must be a valid URL")
+      .nullable()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? v : null)),
+    logoMediaFileId: z
+      .string()
+      .trim()
+      .nullable()
+      .optional()
+      .transform((v) => (v && v.length > 0 ? v : null)),
   })
   .superRefine((data, ctx) => {
     if (data.themeMode === "CUSTOM" && !data.themePrimaryHex) {

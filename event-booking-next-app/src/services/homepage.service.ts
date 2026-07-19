@@ -39,17 +39,19 @@ export async function createMediaFile(data: {
 }
 
 export async function deleteMediaFile(id: string) {
-  const [carouselCount, galleryCount, heroCount] = await Promise.all([
+  const [carouselCount, galleryCount, heroCount, siteLogoCount] = await Promise.all([
     prisma.heroCarouselImage.count({ where: { mediaFileId: id } }),
     prisma.galleryItem.count({ where: { mediaFileId: id } }),
     prisma.heroSection.count({ where: { logoMediaFileId: id } }),
+    prisma.siteSettings.count({ where: { logoMediaFileId: id } }),
   ]);
 
-  if (carouselCount + galleryCount + heroCount > 0) {
+  if (carouselCount + galleryCount + heroCount + siteLogoCount > 0) {
     const usedIn: string[] = [];
     if (carouselCount > 0) usedIn.push(`${carouselCount} carousel slide(s)`);
     if (galleryCount > 0) usedIn.push(`${galleryCount} gallery item(s)`);
     if (heroCount > 0) usedIn.push("hero logo");
+    if (siteLogoCount > 0) usedIn.push("site logo");
     throw new Error(
       `Cannot delete: file is used in ${usedIn.join(", ")}. Remove it from those sections first.`
     );

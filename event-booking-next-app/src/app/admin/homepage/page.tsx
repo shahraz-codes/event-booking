@@ -2336,6 +2336,8 @@ interface SiteSettingsData {
   contactEmail: string | null;
   aboutBlurb: string | null;
   metaDescription: string | null;
+  logoUrl: string | null;
+  logoMediaFileId: string | null;
 }
 
 const DEFAULT_SETTINGS: SiteSettingsData = {
@@ -2356,6 +2358,8 @@ const DEFAULT_SETTINGS: SiteSettingsData = {
   contactEmail: null,
   aboutBlurb: null,
   metaDescription: null,
+  logoUrl: null,
+  logoMediaFileId: null,
 };
 
 function useSiteSettings() {
@@ -2387,6 +2391,8 @@ function useSiteSettings() {
           contactEmail: json.data.contactEmail ?? null,
           aboutBlurb: json.data.aboutBlurb ?? null,
           metaDescription: json.data.metaDescription ?? null,
+          logoUrl: json.data.logoUrl ?? null,
+          logoMediaFileId: json.data.logoMediaFileId ?? null,
         });
       } else {
         setSettings({ ...DEFAULT_SETTINGS });
@@ -2931,6 +2937,7 @@ function ContactEditor() {
   const { toast } = useToast();
   const { settings, setSettings, loading } = useSiteSettings();
   const [saving, setSaving] = useState(false);
+  const [showLogoPicker, setShowLogoPicker] = useState(false);
 
   if (loading || !settings) return <Spinner />;
 
@@ -2973,6 +2980,8 @@ function ContactEditor() {
         contactEmail: settings.contactEmail?.trim() || null,
         aboutBlurb: settings.aboutBlurb?.trim() || null,
         metaDescription: settings.metaDescription?.trim() || null,
+        logoUrl: settings.logoUrl || null,
+        logoMediaFileId: settings.logoMediaFileId || null,
       };
       const res = await saveSettings(payload);
       if (res.success) {
@@ -2988,8 +2997,54 @@ function ContactEditor() {
     }
   };
 
+  const logoPreviewUrl = settings.logoUrl;
+
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Site logo</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Shown in the public site header. Falls back to the default logo
+            when unset.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          {logoPreviewUrl && (
+            <div className="relative h-16 w-16 overflow-hidden rounded-full border border-gray-200">
+              <Image
+                src={logoPreviewUrl}
+                alt="Site logo preview"
+                fill
+                className="object-cover"
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowLogoPicker(true)}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            {logoPreviewUrl ? "Change Logo" : "Select Logo"}
+          </button>
+          {logoPreviewUrl && (
+            <button
+              type="button"
+              onClick={() =>
+                setSettings({
+                  ...settings,
+                  logoUrl: null,
+                  logoMediaFileId: null,
+                })
+              }
+              className="text-sm text-red-600 hover:text-red-800"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Address</h2>
@@ -3085,6 +3140,19 @@ function ContactEditor() {
           {saving ? "Saving..." : "Save Contact Details"}
         </button>
       </div>
+
+      <MediaPickerModal
+        open={showLogoPicker}
+        onClose={() => setShowLogoPicker(false)}
+        filterType="image"
+        onSelect={(file) =>
+          setSettings({
+            ...settings,
+            logoMediaFileId: file.id,
+            logoUrl: file.url,
+          })
+        }
+      />
     </div>
   );
 }
