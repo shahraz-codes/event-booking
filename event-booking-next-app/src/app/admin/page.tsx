@@ -169,6 +169,18 @@ function AdminPageContent() {
   const [quotationLoading, setQuotationLoading] = useState(false);
 
   const { disabledDates, refetch: refetchCalendar } = useCalendarData();
+  const [calendarInfo, setCalendarInfo] = useState<
+    Record<string, { approved: string[]; pending: string[] }>
+  >({});
+  const fetchCalendarInfo = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/calendar");
+      const json = await res.json();
+      if (json.success) setCalendarInfo(json.data);
+    } catch (err) {
+      console.error("Failed to fetch calendar info:", err);
+    }
+  }, []);
 
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -228,7 +240,8 @@ function AdminPageContent() {
 
   useEffect(() => {
     fetchBlocked();
-  }, [fetchBlocked]);
+    fetchCalendarInfo();
+  }, [fetchBlocked, fetchCalendarInfo]);
 
   // ─── Booking Actions ────────────────────────────────────
 
@@ -302,8 +315,9 @@ function AdminPageContent() {
         setApprovalTarget(null);
         setApprovalForm({ totalAmount: "", advanceAmount: "", adminNote: "" });
         fetchBookings();
-        fetchBlocked();
-        refetchCalendar();
+          fetchBlocked();
+          refetchCalendar();
+          fetchCalendarInfo();
       } else {
         toast("error", json.error || `Failed to ${action}`);
       }
@@ -521,8 +535,9 @@ function AdminPageContent() {
         toast("success", "Date blocked successfully");
         setBlockDate("");
         setBlockReason("");
-        fetchBlocked();
-        refetchCalendar();
+          fetchBlocked();
+          refetchCalendar();
+          fetchCalendarInfo();
       } else {
         toast("error", json.error || "Failed to block date");
       }
@@ -543,8 +558,9 @@ function AdminPageContent() {
       const json = await res.json();
       if (json.success) {
         toast("success", "Date unblocked");
-        fetchBlocked();
-        refetchCalendar();
+          fetchBlocked();
+          refetchCalendar();
+          fetchCalendarInfo();
       } else {
         toast("error", json.error || "Failed to unblock");
       }
@@ -1692,6 +1708,7 @@ function AdminPageContent() {
               selectedDate={null}
               onDateSelect={() => {}}
               disabledDates={disabledDates}
+              dateInfo={calendarInfo}
               readOnly
             />
           </div>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Alert,
   FlatList,
+  Pressable,
   RefreshControl,
   Text,
   TextInput,
@@ -20,6 +21,8 @@ interface CalendarData {
   bookedDates: string[];
   blockedDates: string[];
 }
+
+type CalendarInfo = Record<string, { approved: string[]; pending: string[] }>;
 
 async function fetchCalendar(): Promise<CalendarData> {
   const today = new Date();
@@ -46,6 +49,24 @@ async function fetchCalendar(): Promise<CalendarData> {
   };
 }
 
+async function fetchCalendarInfo(): Promise<CalendarInfo> {
+  return apiFetch<CalendarInfo>("/api/admin/calendar");
+}
+
+function showDateInfo(date: string, info?: { approved: string[]; pending: string[] }) {
+  const lines: string[] = [];
+  if (info?.approved?.length) {
+    lines.push(`Booked: ${info.approved.join(", ")}`);
+  }
+  if (info?.pending?.length) {
+    lines.push(`Pending: ${info.pending.join(", ")}`);
+  }
+  Alert.alert(
+    formatDate(date),
+    lines.length ? lines.join("\n") : "No booking IDs for this date."
+  );
+}
+
 export default function CalendarScreen() {
   const qc = useQueryClient();
   const [newDate, setNewDate] = useState("");
@@ -56,6 +77,11 @@ export default function CalendarScreen() {
     queryFn: fetchCalendar,
   });
 
+  const { data: calendarInfo, refetch: refetchInfo } = useQuery({
+    queryKey: ["calendar-info"],
+    queryFn: fetchCalendarInfo,
+  });
+
   const blockMutation = useMutation({
     mutationFn: (payload: { date: string; reason?: string }) =>
       apiFetch("/api/admin/blocked-dates", { method: "POST", body: payload }),
@@ -63,6 +89,7 @@ export default function CalendarScreen() {
       setNewDate("");
       setReason("");
       qc.invalidateQueries({ queryKey: ["calendar"] });
+      qc.invalidateQueries({ queryKey: ["calendar-info"] });
       Alert.alert("Blocked", "Date blocked successfully.");
     },
     onError: (err: Error) => Alert.alert("Failed", err.message),
@@ -74,7 +101,10 @@ export default function CalendarScreen() {
         method: "DELETE",
         body: { date },
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["calendar"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["calendar"] });
+      qc.invalidateQueries({ queryKey: ["calendar-info"] });
+    },
     onError: (err: Error) => Alert.alert("Failed", err.message),
   });
 
@@ -94,7 +124,10 @@ export default function CalendarScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isLoading || isRefetching}
-            onRefresh={() => refetch()}
+            onRefresh={() => {
+              void refetch();
+              void refetchInfo();
+            }}
           />
         }
         ListHeaderComponent={
@@ -145,9 +178,19 @@ export default function CalendarScreen() {
                 </Text>
               ) : (
                 data.bookedDates.map((d) => (
-                  <Text key={d} className="text-sm text-gray-700 py-1">
-                    • {formatDate(d)}
-                  </Text>
+                  <Pressable
+                    key={d}
+                    onPress={() => showDateInfo(d, calendarInfo?.[d])}
+                    onLongPress={() => showDateInfo(d, calendarInfo?.[d])}
+                    className="py-1"
+                  >
+                    <Text className="text-sm text-gray-700">
+                      • {formatDate(d)}
+                      {calendarInfo?.[d]?.approved?.length
+                        ? `  (${calendarInfo[d].approved.join(", ")})`
+                        : ""}
+                    </Text>
+                  </Pressable>
                 ))
               )}
             </Section>

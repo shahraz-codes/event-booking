@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { BookingStatus } from "@/generated/prisma/client";
 import { format } from "date-fns";
 
 export async function getCalendarData() {
@@ -32,6 +33,51 @@ export async function getCalendarData() {
     bookedDates: bookedDateStrings,
     blockedDates: blockedDateStrings,
   };
+}
+
+// ── Feature 3: admin calendar tooltip data ──────────────────────────────────
+// Per-date index of booking IDs, split into confirmed (APPROVED) and
+// un-approved / in-progress. Consumed ONLY by the admin-gated
+// GET /api/admin/calendar route — never exposed on the public /api/calendar.
+
+export interface CalendarDateBookings {
+  approved: string[]; // booking IDs with status APPROVED
+  pending: string[]; // booking IDs with any in-progress status
+}
+export type CalendarBookingsIndex = Record<string, CalendarDateBookings>;
+
+// Statuses that count as "un-approved but active" for a date. Excludes the
+// terminal states REJECTED and CANCELLED.
+const IN_PROGRESS_STATUSES: BookingStatus[] = [
+  "PENDING",
+  "QUOTATION_SENT",
+  "QUOTATION_FINALIZED",
+  "CANCELLATION_REQUESTED",
+  "DATE_CHANGE_REQUESTED",
+  "CONFLICTED",
+];
+
+export async function getCalendarBookingsIndex(): Promise<CalendarBookingsIndex> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const rows = await prisma.booking.findMany({
+    where: {
+      date: { gte: today },
+      status: { in: ["APPROVED", ...IN_PROGRESS_STATUSES] },
+    },
+    select: { bookingId: true, status: true, date: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const index: CalendarBookingsIndex = {};
+  for (const row of rows) {
+    const key = format(row.date, "yyyy-MM-dd");
+    const bucket = (index[key] ??= { approved: [], pending: [] });
+    if (row.status === "APPROVED") bucket.approved.push(row.bookingId);
+    else bucket.pending.push(row.bookingId);
+  }
+  return index;
 }
 
 export async function addBlockedDate(date: string, reason?: string) {
