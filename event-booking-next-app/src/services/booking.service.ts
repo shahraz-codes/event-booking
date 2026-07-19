@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { BOOKING_ID_PREFIX } from "@/lib/config";
 import {
   BookingStatus,
   CommentSender,
@@ -14,7 +15,7 @@ function generateSecretCode(): string {
 
 export async function generateBookingId(): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = `BNQ-${year}-`;
+  const prefix = `${BOOKING_ID_PREFIX}-${year}-`;
 
   const lastBooking = await prisma.booking.findFirst({
     where: { bookingId: { startsWith: prefix } },

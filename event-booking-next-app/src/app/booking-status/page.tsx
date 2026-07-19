@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import DownloadReceipt from "@/components/BookingReceipt";
 import DownloadQuotation from "@/components/QuotationPDF";
 import Calendar, { useCalendarData } from "@/components/Calendar";
+import { BOOKING_ID_PREFIX } from "@/lib/config";
 
 interface BookingBasic {
   bookingId: string;
@@ -426,7 +427,7 @@ function BookingStatusContent() {
             type="text"
             value={bookingId}
             onChange={(e) => setBookingId(e.target.value)}
-            placeholder="e.g. BNQ-2026-0001"
+            placeholder={`e.g. ${BOOKING_ID_PREFIX}-${new Date().getFullYear()}-0001`}
             className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-3 text-sm font-mono text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 sm:px-4"
           />
           <button
