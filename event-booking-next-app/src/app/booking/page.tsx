@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import Calendar, { useCalendarData } from "@/components/Calendar";
 import PhoneField from "@/components/PhoneField";
+import BookingQRCode from "@/components/BookingQRCode";
 import { EVENT_TYPES, bookingSchema, getZodErrorMessage } from "@/types";
 import Link from "next/link";
 
@@ -207,6 +208,12 @@ export default function BookingPage() {
               This personal link opens your booking, chat with us, and update
               your booking — no login needed. Keep it safe.
             </p>
+            <div className="mb-3 flex justify-center">
+              <BookingQRCode
+                value={buildStatusUrl(result.magicLinkToken)}
+                fileName={`${result.bookingId}-qr.png`}
+              />
+            </div>
             <div className="mb-3 flex items-center gap-2 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
               <span className="flex-1 truncate font-mono text-xs text-gray-700">
                 {buildStatusUrl(result.magicLinkToken)}

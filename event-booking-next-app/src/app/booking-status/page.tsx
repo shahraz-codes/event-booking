@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import DownloadReceipt from "@/components/BookingReceipt";
 import DownloadQuotation from "@/components/QuotationPDF";
 import Calendar, { useCalendarData } from "@/components/Calendar";
+import QRScanner from "@/components/QRScanner";
 import { BOOKING_ID_PREFIX } from "@/lib/config";
 import { EMPTY_ORG, type OrgInfo } from "@/lib/org-info";
 
@@ -451,6 +452,17 @@ function BookingStatusContent() {
             )}
           </button>
         </form>
+      )}
+
+      {!authToken && (
+        <div className="mb-8">
+          <QRScanner
+            onToken={(t) => {
+              setAuthToken(t);
+              fetchStatus({ tokenOverride: t });
+            }}
+          />
+        </div>
       )}
 
       {error && (
