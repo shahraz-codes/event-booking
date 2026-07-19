@@ -12,15 +12,8 @@ import {
 import { format } from "date-fns";
 import type { QuotationData } from "@/types";
 import { APP_NAME } from "@/lib/config";
-
-const EVENT_TYPE_LABELS: Record<string, string> = {
-  wedding: "Wedding",
-  reception: "Reception",
-  birthday: "Birthday Party",
-  corporate: "Corporate Event",
-  engagement: "Engagement Ceremony",
-  other: "Other",
-};
+import { EVENT_TYPE_LABELS } from "@/lib/constants";
+import { EMPTY_ORG, formatOrgAddress, type OrgInfo } from "@/lib/org-info";
 
 interface QuotationBooking {
   bookingId: string;
@@ -168,24 +161,24 @@ function formatCurrency(amount: number) {
 function QuotationDocument({
   booking,
   quotation,
+  org,
 }: {
   booking: QuotationBooking;
   quotation: QuotationData;
+  org: OrgInfo;
 }) {
   const balance = quotation.totalAmount - quotation.advanceAmount;
+  const address = formatOrgAddress(org);
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>{APP_NAME}</Text>
-          <Text style={styles.subtitle}>
-            10-3-304, c/6, Masab Tank Road, beside mujtaba jewelers, above HDFC BANK
-            NMDC Colony, Masab Tank, Hyderabad, Telangana 500006
-          </Text>
-          <Text style={styles.subtitle}>
-            Phone: +91 9885607418
-          </Text>
+          <Text style={styles.title}>{org.name || APP_NAME}</Text>
+          {!!address && <Text style={styles.subtitle}>{address}</Text>}
+          {!!org.phone && (
+            <Text style={styles.subtitle}>Phone: {org.phone}</Text>
+          )}
         </View>
 
         <Text style={styles.docLabel}>QUOTATION</Text>
@@ -287,12 +280,7 @@ function QuotationDocument({
                 >
                   Balance
                 </Text>
-                <Text
-                  style={[
-                    styles.summaryValue,
-                    { color: "#92400e" },
-                  ]}
-                >
+                <Text style={[styles.summaryValue, { color: "#92400e" }]}>
                   {formatCurrency(balance)}
                 </Text>
               </View>
@@ -310,8 +298,8 @@ function QuotationDocument({
         )}
 
         <Text style={styles.footer}>
-          This is a computer-generated quotation from {APP_NAME}. For queries,
-          contact us at +91 7075751754.
+          This is a computer-generated quotation from {org.name || APP_NAME}.
+          {org.phone ? ` For queries, contact us at ${org.phone}.` : ""}
         </Text>
       </Page>
     </Document>
@@ -321,9 +309,11 @@ function QuotationDocument({
 export default function DownloadQuotation({
   booking,
   quotation,
+  org = EMPTY_ORG,
 }: {
   booking: QuotationBooking;
   quotation: QuotationData;
+  org?: OrgInfo;
 }) {
   const [generating, setGenerating] = useState(false);
 
@@ -331,7 +321,7 @@ export default function DownloadQuotation({
     setGenerating(true);
     try {
       const blob = await pdf(
-        <QuotationDocument booking={booking} quotation={quotation} />
+        <QuotationDocument booking={booking} quotation={quotation} org={org} />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -354,12 +344,7 @@ export default function DownloadQuotation({
       disabled={generating}
       className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 disabled:opacity-50"
     >
-      <svg
-        className="h-4 w-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

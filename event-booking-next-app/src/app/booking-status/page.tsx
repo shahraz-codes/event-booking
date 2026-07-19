@@ -22,6 +22,7 @@ import DownloadReceipt from "@/components/BookingReceipt";
 import DownloadQuotation from "@/components/QuotationPDF";
 import Calendar, { useCalendarData } from "@/components/Calendar";
 import { BOOKING_ID_PREFIX } from "@/lib/config";
+import { EMPTY_ORG, type OrgInfo } from "@/lib/org-info";
 
 interface BookingBasic {
   bookingId: string;
@@ -173,6 +174,14 @@ function BookingStatusContent() {
   const [dateModalMode, setDateModalMode] = useState<"direct" | "request" | "pick">("direct");
   const [newDate, setNewDate] = useState<string | null>(null);
   const [dateReason, setDateReason] = useState("");
+
+  const [org, setOrg] = useState<OrgInfo>(EMPTY_ORG);
+  useEffect(() => {
+    fetch("/api/settings/public")
+      .then((r) => r.json())
+      .then((j) => { if (j.success) setOrg(j.data); })
+      .catch(() => {});
+  }, []);
 
   const { disabledDates } = useCalendarData();
 
@@ -855,6 +864,7 @@ function BookingStatusContent() {
                     createdAt: fullBooking.createdAt,
                   }}
                   quotation={fullBooking.quotation}
+                  org={org}
                 />
               </div>
             </div>
@@ -899,6 +909,7 @@ function BookingStatusContent() {
                       ...fullBooking,
                       quotation: fullBooking.quotation ?? undefined,
                     }}
+                    org={org}
                   />
                 </div>
               </div>
