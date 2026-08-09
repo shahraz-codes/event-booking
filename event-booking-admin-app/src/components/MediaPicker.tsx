@@ -2,11 +2,11 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -125,7 +125,7 @@ export default function MediaPicker({
               <Image
                 source={{ uri: current.url }}
                 style={{ width: "100%", height: "100%" }}
-                resizeMode="cover"
+                contentFit="cover"
               />
             )}
             <View className="absolute bottom-1 right-1 bg-black/50 px-2 py-0.5 rounded">

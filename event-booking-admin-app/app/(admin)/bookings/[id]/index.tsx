@@ -119,13 +119,14 @@ export default function BookingDetailScreen() {
   function confirmAction(
     action: AdminBookingAction,
     label: string,
-    extras: Partial<AdminActionPayload> = {}
+    extras: Partial<AdminActionPayload> = {},
+    options: { destructive?: boolean } = {}
   ) {
     Alert.alert(label, `${label} for ${bookingId}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Yes",
-        style: "destructive",
+        style: options.destructive ? "destructive" : "default",
         onPress: () =>
           actionMutation.mutate({
             bookingId,
@@ -360,7 +361,9 @@ export default function BookingDetailScreen() {
                         onPress={() =>
                           confirmAction(
                             "declineCancellation",
-                            "Decline cancellation"
+                            "Decline cancellation",
+                            {},
+                            { destructive: true }
                           )
                         }
                         loading={actionMutation.isPending}
@@ -423,7 +426,9 @@ export default function BookingDetailScreen() {
                         onPress={() =>
                           confirmAction(
                             "declineDateChange",
-                            "Decline date change"
+                            "Decline date change",
+                            {},
+                            { destructive: true }
                           )
                         }
                         loading={actionMutation.isPending}
@@ -521,7 +526,11 @@ export default function BookingDetailScreen() {
                   <ActionButton
                     label="Reject booking"
                     variant="danger"
-                    onPress={() => confirmAction("reject", "Reject booking")}
+                    onPress={() =>
+                      confirmAction("reject", "Reject booking", {}, {
+                        destructive: true,
+                      })
+                    }
                     loading={actionMutation.isPending}
                     fullWidth
                   />
@@ -544,7 +553,11 @@ export default function BookingDetailScreen() {
                 <ActionButton
                   label="Cancel booking"
                   variant="danger"
-                  onPress={() => confirmAction("cancel", "Cancel booking")}
+                  onPress={() =>
+                    confirmAction("cancel", "Cancel booking", {}, {
+                      destructive: true,
+                    })
+                  }
                   loading={actionMutation.isPending}
                   fullWidth
                 />

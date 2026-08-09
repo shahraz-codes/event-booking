@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   Pressable,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -150,7 +150,7 @@ export default function MediaLibraryScreen() {
               <Image
                 source={{ uri: item.url }}
                 style={{ width: "100%", aspectRatio: 1, borderRadius: 6 }}
-                resizeMode="cover"
+                contentFit="cover"
               />
             ) : (
               <View

@@ -1,18 +1,5 @@
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
-
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
-  return (
-    <Text
-      style={{
-        fontSize: 18,
-        opacity: focused ? 1 : 0.6,
-      }}
-    >
-      {label}
-    </Text>
-  );
-}
+import { Ionicons } from "@expo/vector-icons";
 
 export default function AdminLayout() {
   return (
@@ -28,8 +15,8 @@ export default function AdminLayout() {
         name="index"
         options={{
           title: "Bookings",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="📋" focused={focused} />
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="list" size={size} color={color} />
           ),
         }}
       />
@@ -37,8 +24,8 @@ export default function AdminLayout() {
         name="calendar"
         options={{
           title: "Calendar",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="📅" focused={focused} />
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />
@@ -46,8 +33,8 @@ export default function AdminLayout() {
         name="homepage"
         options={{
           title: "Homepage",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="🏠" focused={focused} />
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
@@ -55,8 +42,8 @@ export default function AdminLayout() {
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="⚙️" focused={focused} />
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }}
       />
