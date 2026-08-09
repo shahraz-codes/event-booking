@@ -33,6 +33,7 @@ import {
   updateQuotation,
   type QuotationItemInput,
 } from "@/services/quotations";
+import { getSiteSettings } from "@/services/site-settings";
 
 interface ItemRow extends QuotationItemInput {
   uid: string;
@@ -216,6 +217,23 @@ export default function QuotationEditorScreen() {
     }
     setGeneratingPdf(true);
     try {
+      let org:
+        | {
+            addressLine1?: string | null;
+            addressLine2?: string | null;
+            phone?: string | null;
+          }
+        | undefined;
+      try {
+        const settings = await getSiteSettings();
+        org = {
+          addressLine1: settings.addressLine1,
+          addressLine2: settings.addressLine2,
+          phone: settings.contactPhone,
+        };
+      } catch {
+        org = undefined;
+      }
       const html = renderQuotationHtml({
         booking: {
           bookingId: booking.bookingId,
@@ -227,6 +245,7 @@ export default function QuotationEditorScreen() {
           numberOfAttendees: booking.numberOfAttendees,
         },
         quotation,
+        org,
       });
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {

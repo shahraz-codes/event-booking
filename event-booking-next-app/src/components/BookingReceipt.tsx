@@ -12,15 +12,8 @@ import {
 import { format } from "date-fns";
 import type { QuotationData } from "@/types";
 import { APP_NAME } from "@/lib/config";
-
-const EVENT_TYPE_LABELS: Record<string, string> = {
-  wedding: "Wedding",
-  reception: "Reception",
-  birthday: "Birthday Party",
-  corporate: "Corporate Event",
-  engagement: "Engagement Ceremony",
-  other: "Other",
-};
+import { EVENT_TYPE_LABELS } from "@/lib/constants";
+import { EMPTY_ORG, formatOrgAddress, type OrgInfo } from "@/lib/org-info";
 
 interface ReceiptBooking {
   bookingId: string;
@@ -150,22 +143,30 @@ function formatCurrency(amount: number) {
   return `Rs. ${amount.toLocaleString("en-IN")}`;
 }
 
-function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
+function ReceiptDocument({
+  booking,
+  org,
+}: {
+  booking: ReceiptBooking;
+  org: OrgInfo;
+}) {
   const total = booking.totalAmount ?? 0;
   const advance = booking.advanceAmount ?? 0;
   const balance = total - advance;
   const hasQuotationItems =
     booking.quotation && booking.quotation.items.length > 0;
 
+  const address = formatOrgAddress(org);
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.title}>{APP_NAME}</Text>
-          <Text style={styles.subtitle}>
-            10-3-304, c/6, Masab Tank Road, beside mujtaba jewelers, above HDFC BANK
-            NMDC Colony, Masab Tank, Hyderabad, Telangana 500006
-          </Text>
+          <Text style={styles.title}>{org.name || APP_NAME}</Text>
+          {!!address && <Text style={styles.subtitle}>{address}</Text>}
+          {!!org.phone && (
+            <Text style={styles.subtitle}>Phone: {org.phone}</Text>
+          )}
         </View>
 
         <Text style={styles.receiptLabel}>BOOKING RECEIPT</Text>
@@ -200,9 +201,7 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
             booking.numberOfAttendees > 0 && (
               <View style={styles.row}>
                 <Text style={styles.label}>Number of Guests</Text>
-                <Text style={styles.value}>
-                  {booking.numberOfAttendees}
-                </Text>
+                <Text style={styles.value}>{booking.numberOfAttendees}</Text>
               </View>
             )}
           <View style={styles.row}>
@@ -233,9 +232,7 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
             </View>
             {booking.quotation!.items.map((item, idx) => (
               <View key={item.id || idx} style={styles.tableRow}>
-                <Text style={[{ fontSize: 10 }, styles.colNum]}>
-                  {idx + 1}
-                </Text>
+                <Text style={[{ fontSize: 10 }, styles.colNum]}>{idx + 1}</Text>
                 <Text style={[{ fontSize: 10 }, styles.colParticular]}>
                   {item.particular}
                   {item.quantity && item.unit
@@ -281,7 +278,9 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
         </View>
 
         <Text style={styles.footer}>
-          This is a computer-generated receipt. For queries, contact {APP_NAME}.
+          This is a computer-generated receipt. For queries, contact{" "}
+          {org.name || APP_NAME}
+          {org.phone ? ` at ${org.phone}` : ""}.
         </Text>
       </Page>
     </Document>
@@ -290,15 +289,19 @@ function ReceiptDocument({ booking }: { booking: ReceiptBooking }) {
 
 export default function DownloadReceipt({
   booking,
+  org = EMPTY_ORG,
 }: {
   booking: ReceiptBooking;
+  org?: OrgInfo;
 }) {
   const [generating, setGenerating] = useState(false);
 
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      const blob = await pdf(<ReceiptDocument booking={booking} />).toBlob();
+      const blob = await pdf(
+        <ReceiptDocument booking={booking} org={org} />
+      ).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -320,12 +323,7 @@ export default function DownloadReceipt({
       disabled={generating}
       className="inline-flex items-center gap-2 rounded-xl bg-green-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-800 disabled:opacity-50"
     >
-      <svg
-        className="h-4 w-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
+      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

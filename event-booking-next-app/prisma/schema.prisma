@@ -133,6 +133,7 @@ model MediaFile {
   carouselImages HeroCarouselImage[]
   galleryItems   GalleryItem[]
   heroSections   HeroSection[]       @relation("HeroLogo")
+  siteLogos      SiteSettings[]      @relation("SiteLogo")
 }
 
 model HeroSection {
@@ -214,5 +215,8 @@ model SiteSettings {
   contactEmail     String?
   aboutBlurb       String?
   metaDescription  String?
+  logoUrl          String?
+  logoMediaFileId  String?
+  logoMedia        MediaFile? @relation("SiteLogo", fields: [logoMediaFileId], references: [id], onDelete: SetNull)
   updatedAt        DateTime @updatedAt
 }

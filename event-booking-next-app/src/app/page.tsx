@@ -23,6 +23,7 @@ import {
 import { getSiteSettings } from "@/services/site-settings.service";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { APP_NAME } from "@/lib/config";
+import { mediaKindOf } from "@/lib/media";
 
 const DEFAULT_HERO = {
   subtitle: "Premium Event Venue \u2022 Tolichowki, Hyderabad",
@@ -64,11 +65,13 @@ export default async function HomePage() {
   const gallery = galleryItems.map((item) => ({
     ...item,
     imageUrl: item.mediaFile?.url ?? item.imageUrl,
+    mediaType: mediaKindOf(item.mediaFile?.resourceType, item.mediaFile?.url ?? item.imageUrl),
   }));
   const services = serviceItems;
   const carouselWithUrls = carouselImages.map((img) => ({
     ...img,
     imageUrl: img.mediaFile?.url ?? img.imageUrl,
+    mediaType: mediaKindOf(img.mediaFile?.resourceType, img.mediaFile?.url ?? img.imageUrl),
   }));
   const hasCarousel = carouselWithUrls.length > 0;
 

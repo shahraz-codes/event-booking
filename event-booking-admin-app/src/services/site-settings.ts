@@ -28,6 +28,8 @@ export interface SiteSettings {
   contactEmail: string | null;
   aboutBlurb: string | null;
   metaDescription: string | null;
+  logoUrl: string | null;
+  logoMediaFileId: string | null;
 }
 
 export function getSiteSettings() {

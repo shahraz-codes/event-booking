@@ -17,7 +17,9 @@ function isAdminLoggedIn(): boolean {
   return document.cookie.split("; ").some((c) => c === "admin_logged_in=1");
 }
 
-export default function Navbar() {
+// Fix 4: `logoUrl` comes from SiteSettings (Homepage Manager). Falls back to the
+// bundled default when unset, so nothing breaks before an admin uploads a logo.
+export default function Navbar({ logoUrl }: { logoUrl?: string | null }) {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -33,6 +35,7 @@ export default function Navbar() {
   }, [pathname, closeMobile]);
 
   const isAdminPage = pathname.startsWith("/admin");
+  const logoSrc = logoUrl || "/images/logo.png";
 
   const allLinks = [
     ...(!isAdminPage ? navLinks : []),
@@ -47,7 +50,7 @@ export default function Navbar() {
           className="flex min-w-0 items-center gap-2 text-base font-bold tracking-tight text-brand-900 sm:gap-2.5 sm:text-xl"
         >
           <Image
-            src="/images/logo.png"
+            src={logoSrc}
             alt={`${APP_NAME} logo`}
             width={36}
             height={36}

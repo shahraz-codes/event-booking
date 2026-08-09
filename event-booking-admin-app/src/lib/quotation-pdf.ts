@@ -24,6 +24,11 @@ interface RenderArgs {
     | "numberOfAttendees"
   >;
   quotation: QuotationData;
+  org?: {
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    phone?: string | null;
+  };
 }
 
 function escape(str: string | number | null | undefined): string {
@@ -36,7 +41,17 @@ function escape(str: string | number | null | undefined): string {
     .replace(/'/g, "&#39;");
 }
 
-export function renderQuotationHtml({ booking, quotation }: RenderArgs): string {
+export function renderQuotationHtml({ booking, quotation, org }: RenderArgs): string {
+  const addressLines = [org?.addressLine1, org?.addressLine2]
+    .map((line) => (line ?? "").trim())
+    .filter(Boolean);
+  const addressHtml = addressLines.length
+    ? addressLines.map((line) => escape(line)).join("<br/>")
+    : "Banquet &amp; Event Bookings";
+  const phoneHtml = org?.phone?.trim()
+    ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${escape(org.phone.trim())}</div>`
+    : "";
+
   const items = quotation.items.map(
     (it, idx) => `
       <tr>
@@ -119,7 +134,8 @@ export function renderQuotationHtml({ booking, quotation }: RenderArgs): string 
   <div class="header">
     <div>
       <div class="brand">${escape(APP_NAME)}</div>
-      <div style="font-size:11px;color:#6b7280;margin-top:4px;">Banquet & Event Bookings</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px;">${addressHtml}</div>
+      ${phoneHtml}
     </div>
     <div class="meta">
       <strong>Quotation</strong>

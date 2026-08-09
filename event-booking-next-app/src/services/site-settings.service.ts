@@ -22,6 +22,9 @@ export interface SiteSettingsRecord {
   contactEmail: string | null;
   aboutBlurb: string | null;
   metaDescription: string | null;
+  // Fix 4: site/header logo (managed via Homepage Manager, uploaded to Cloudinary)
+  logoUrl: string | null;
+  logoMediaFileId: string | null;
   updatedAt: Date;
 }
 
@@ -44,6 +47,8 @@ const DEFAULTS: Omit<SiteSettingsRecord, "updatedAt"> = {
   contactEmail: null,
   aboutBlurb: null,
   metaDescription: null,
+  logoUrl: null,
+  logoMediaFileId: null,
 };
 
 export async function getSiteSettings(): Promise<SiteSettingsRecord> {
@@ -74,6 +79,11 @@ export interface UpdatableSettings {
   contactEmail?: string | null;
   aboutBlurb?: string | null;
   metaDescription?: string | null;
+  // Fix 4: logoMediaFileId is a scalar FK; setting it to a MediaFile id links
+  // the logo, null clears it. logoUrl stores the resolved Cloudinary URL used
+  // directly by the header/Navbar (no relation include needed at render time).
+  logoUrl?: string | null;
+  logoMediaFileId?: string | null;
 }
 
 export async function updateSiteSettings(

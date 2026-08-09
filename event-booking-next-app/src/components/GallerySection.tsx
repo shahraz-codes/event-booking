@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import GalleryImage from "./GalleryImage";
 import HorizontalScroller from "./HorizontalScroller";
 import { APP_NAME } from "@/lib/config";
+import { cloudinaryVideoPoster } from "@/lib/media";
 
 interface GalleryItem {
   id: string;
@@ -12,6 +13,33 @@ interface GalleryItem {
   desc: string;
   gradient: string;
   imageUrl: string;
+  mediaType?: "image" | "video";
+}
+
+// Grid thumbnail for a video item: shows the first frame (poster) with a play badge.
+function GalleryVideoThumb({ src, alt }: { src: string; alt: string }) {
+  const poster = cloudinaryVideoPoster(src) ?? undefined;
+  return (
+    <>
+      <video
+        // #t=0.1 hints browsers to render the first frame when no poster is available
+        src={poster ? src : `${src}#t=0.1`}
+        poster={poster}
+        muted
+        playsInline
+        preload="metadata"
+        aria-label={alt}
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm">
+          <svg className="ml-0.5 h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </span>
+      </div>
+    </>
+  );
 }
 
 export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) {
@@ -74,7 +102,12 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
             onClick={() => open(index)}
             className={`group relative flex h-64 w-[78%] shrink-0 cursor-pointer snap-start flex-col justify-end overflow-hidden rounded-2xl bg-gradient-to-br sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-4.5rem)/4)] ${img.gradient} p-6 shadow-lg transition-transform hover:-translate-y-1`}
           >
-            {img.imageUrl && <GalleryImage src={img.imageUrl} alt={img.title} />}
+            {img.imageUrl &&
+              (img.mediaType === "video" ? (
+                <GalleryVideoThumb src={img.imageUrl} alt={img.title} />
+              ) : (
+                <GalleryImage src={img.imageUrl} alt={img.title} />
+              ))}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
             <div className="relative">
               <h3 className="text-lg font-semibold text-white">{img.title}</h3>
@@ -107,7 +140,7 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
             <button
               onClick={(e) => { e.stopPropagation(); prev(); }}
               className="absolute left-4 z-10 rounded-full bg-black/40 p-3 text-white/80 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-white"
-              aria-label="Previous image"
+              aria-label="Previous item"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -120,7 +153,7 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
             <button
               onClick={(e) => { e.stopPropagation(); next(); }}
               className="absolute right-4 z-10 rounded-full bg-black/40 p-3 text-white/80 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-white"
-              aria-label="Next image"
+              aria-label="Next item"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -135,19 +168,32 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
               visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
             }`}
           >
-            <div className="relative h-[75vh] w-full">
+            <div className="relative flex h-[75vh] w-full items-center justify-center">
               {selected.imageUrl ? (
-                <Image
-                  src={selected.imageUrl}
-                  alt={selected.title}
-                  fill
-                  className="rounded-lg object-contain"
-                  sizes="(max-width: 1280px) 100vw, 1280px"
-                  priority
-                />
+                selected.mediaType === "video" ? (
+                  <video
+                    key={selected.id}
+                    src={selected.imageUrl}
+                    poster={cloudinaryVideoPoster(selected.imageUrl) ?? undefined}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-h-full max-w-full rounded-lg"
+                    aria-label={selected.title}
+                  />
+                ) : (
+                  <Image
+                    src={selected.imageUrl}
+                    alt={selected.title}
+                    fill
+                    className="rounded-lg object-contain"
+                    sizes="(max-width: 1280px) 100vw, 1280px"
+                    priority
+                  />
+                )
               ) : (
                 <div className="flex h-full items-center justify-center text-white/50">
-                  No image available
+                  No media available
                 </div>
               )}
             </div>

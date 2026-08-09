@@ -16,11 +16,22 @@ import {
   startOfDay,
 } from "date-fns";
 
+// Feature 3: optional per-date booking info. Only the admin dashboard passes
+// this; the customer booking page omits it, so no booking IDs are ever shown
+// or fetched on the public site.
+export interface CalendarDateBookings {
+  approved: string[];
+  pending: string[];
+}
+
 interface CalendarProps {
   selectedDate: string | null;
   onDateSelect: (date: string) => void;
   disabledDates?: string[];
   readOnly?: boolean;
+  dateInfo?: Record<string, CalendarDateBookings>;
+  /** UX-6: optional feedback when the user taps an unavailable day. */
+  onDisabledDateClick?: (date: string) => void;
 }
 
 export default function Calendar({
@@ -28,17 +39,24 @@ export default function Calendar({
   onDateSelect,
   disabledDates = [],
   readOnly = false,
+  dateInfo,
+  onDisabledDateClick,
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [hovered, setHovered] = useState<string | null>(null);
   const today = startOfDay(new Date());
 
   const disabledSet = new Set(disabledDates);
+
+  const clearHover = (dateStr: string) =>
+    setHovered((d) => (d === dateStr ? null : d));
 
   const renderHeader = () => (
     <div className="mb-4 flex items-center justify-between">
       <button
         type="button"
         onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+        aria-label="Previous month"
         className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 transition-colors"
       >
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -51,6 +69,7 @@ export default function Calendar({
       <button
         type="button"
         onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+        aria-label="Next month"
         className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 transition-colors"
       >
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -97,27 +116,80 @@ export default function Calendar({
 
         const cellDay = day;
 
+        const info = dateInfo?.[dateStr];
+        const hasInfo =
+          !!info && (info.approved.length > 0 || info.pending.length > 0);
+        // Amber marker only for dates that carry in-progress bookings but are
+        // not already flagged as unavailable (which show the red dot below).
+        const showPendingMarker =
+          !!info &&
+          info.pending.length > 0 &&
+          info.approved.length === 0 &&
+          isCurrentMonth &&
+          !isDisabled;
+
         days.push(
-          <button
+          // Handlers live on this non-disabled wrapper so that hovering a
+          // DISABLED (approved/blocked) day button still triggers the tooltip —
+          // disabled buttons don't reliably emit mouse events in all browsers.
+          <div
             key={dateStr}
-            type="button"
-            disabled={isDisabled || readOnly}
-            onClick={() => !isDisabled && !readOnly && onDateSelect(dateStr)}
-            className={`relative aspect-square rounded-lg p-1 text-sm font-medium transition-all ${
-              !isCurrentMonth
-                ? "text-gray-300"
-                : isSelected
-                  ? "bg-brand-600 text-white shadow-md"
-                  : isDisabled
-                    ? "cursor-not-allowed bg-red-50 text-red-300 line-through"
-                    : "text-gray-700 hover:bg-brand-100 hover:text-brand-900"
-            } ${isToday && !isSelected ? "ring-2 ring-brand-400" : ""}`}
+            className="relative"
+            onMouseEnter={() => hasInfo && setHovered(dateStr)}
+            onMouseLeave={() => clearHover(dateStr)}
+            onClick={() => {
+              if (isDisabled && !readOnly && onDisabledDateClick && isCurrentMonth) {
+                onDisabledDateClick(dateStr);
+              }
+            }}
           >
-            {format(cellDay, "d")}
-            {isDisabled && isCurrentMonth && !isPast && (
-              <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-red-400" />
+            <button
+              type="button"
+              disabled={isDisabled || readOnly}
+              onClick={() => !isDisabled && !readOnly && onDateSelect(dateStr)}
+              onFocus={() => hasInfo && setHovered(dateStr)}
+              onBlur={() => clearHover(dateStr)}
+              aria-label={format(cellDay, "EEEE, MMMM d, yyyy")}
+              className={`relative aspect-square w-full rounded-lg p-1 text-sm font-medium transition-all ${
+                !isCurrentMonth
+                  ? "text-gray-300"
+                  : isSelected
+                    ? "bg-brand-600 text-white shadow-md"
+                    : isDisabled
+                      ? "cursor-not-allowed bg-red-50 text-red-300 line-through"
+                      : "text-gray-700 hover:bg-brand-100 hover:text-brand-900"
+              } ${isToday && !isSelected ? "ring-2 ring-brand-400" : ""}`}
+            >
+              {format(cellDay, "d")}
+              {isDisabled && isCurrentMonth && !isPast && (
+                <span className="absolute bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-red-400" />
+              )}
+              {showPendingMarker && (
+                <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-amber-400" />
+              )}
+            </button>
+
+            {hovered === dateStr && hasInfo && (
+              <div
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1 w-max max-w-[220px] -translate-x-1/2 rounded-lg bg-gray-900 px-2.5 py-1.5 text-left text-xs leading-relaxed text-white shadow-lg"
+              >
+                {info!.approved.length > 0 && (
+                  <div>
+                    <span className="font-semibold text-green-300">Booked:</span>{" "}
+                    {info!.approved.join(", ")}
+                  </div>
+                )}
+                {info!.pending.length > 0 && (
+                  <div>
+                    <span className="font-semibold text-amber-300">Pending:</span>{" "}
+                    {info!.pending.join(", ")}
+                  </div>
+                )}
+                <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+              </div>
             )}
-          </button>
+          </div>
         );
         day = addDays(day, 1);
       }
@@ -137,7 +209,7 @@ export default function Calendar({
       {renderHeader()}
       {renderDays()}
       {renderCells()}
-      <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+      <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-gray-500">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded bg-red-50 border border-red-200" />
           Unavailable
@@ -150,6 +222,13 @@ export default function Calendar({
           <span className="inline-block h-3 w-3 rounded ring-2 ring-brand-400" />
           Today
         </div>
+        {/* Only meaningful in the admin view (where dateInfo is provided). */}
+        {dateInfo && (
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+            Pending request
+          </div>
+        )}
       </div>
     </div>
   );
@@ -164,11 +243,8 @@ export function useCalendarData() {
       const res = await fetch("/api/calendar");
       const json = await res.json();
       if (json.success) {
-        const all = [
-          ...json.data.bookedDates,
-          ...json.data.blockedDates,
-        ];
-        setDisabledDates([...new Set(all)]);
+        const all = [...json.data.bookedDates, ...json.data.blockedDates];
+        setDisabledDates([...new Set<string>(all)]);
       }
     } catch (err) {
       console.error("Failed to fetch calendar:", err);

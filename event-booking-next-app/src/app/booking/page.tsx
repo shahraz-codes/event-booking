@@ -2,7 +2,10 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import Calendar, { useCalendarData } from "@/components/Calendar";
+import PhoneField from "@/components/PhoneField";
+import BookingQRCode from "@/components/BookingQRCode";
 import { EVENT_TYPES, bookingSchema, getZodErrorMessage } from "@/types";
+import { format } from "date-fns";
 import Link from "next/link";
 
 interface BookingResult {
@@ -36,6 +39,7 @@ export default function BookingPage() {
   const [result, setResult] = useState<BookingResult | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [unavailableNote, setUnavailableNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (result && typeof window !== "undefined") {
@@ -206,6 +210,12 @@ export default function BookingPage() {
               This personal link opens your booking, chat with us, and update
               your booking — no login needed. Keep it safe.
             </p>
+            <div className="mb-3 flex justify-center">
+              <BookingQRCode
+                value={buildStatusUrl(result.magicLinkToken)}
+                fileName={`${result.bookingId}-qr.png`}
+              />
+            </div>
             <div className="mb-3 flex items-center gap-2 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
               <span className="flex-1 truncate font-mono text-xs text-gray-700">
                 {buildStatusUrl(result.magicLinkToken)}
@@ -297,9 +307,22 @@ export default function BookingPage() {
           ) : (
             <Calendar
               selectedDate={selectedDate}
-              onDateSelect={setSelectedDate}
+              onDateSelect={(d) => {
+                setSelectedDate(d);
+                setUnavailableNote(null);
+              }}
               disabledDates={disabledDates}
+              onDisabledDateClick={(d) =>
+                setUnavailableNote(
+                  `${format(new Date(d + "T00:00:00"), "EEEE, MMMM d, yyyy")} is not available. Please choose another date.`
+                )
+              }
             />
+          )}
+          {unavailableNote && (
+            <p className="mt-3 text-sm text-amber-700" role="status">
+              {unavailableNote}
+            </p>
           )}
         </div>
 
@@ -324,20 +347,14 @@ export default function BookingPage() {
               />
             </div>
 
-            <div>
-              <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Phone Number <span className="text-xs text-gray-400">(WhatsApp)</span>
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                placeholder="e.g. +91 98765 43210"
-              />
-            </div>
+            <PhoneField
+              label="Phone Number"
+              value={formData.phone || null}
+              onChange={(v) => setFormData({ ...formData, phone: v ?? "" })}
+              storageFormat="pretty"
+              required
+              id="phone"
+            />
 
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
@@ -400,7 +417,11 @@ export default function BookingPage() {
                 id="date-display"
                 type="text"
                 readOnly
-                value={selectedDate || ""}
+                value={
+                  selectedDate
+                    ? format(new Date(selectedDate + "T00:00:00"), "EEEE, MMMM d, yyyy")
+                    : ""
+                }
                 placeholder="Select from calendar"
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none"
               />

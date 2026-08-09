@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { ConfirmProvider, useConfirm } from "@/components/ConfirmDialog";
 import { APP_NAME } from "@/lib/config";
+import PhoneField from "@/components/PhoneField";
 import {
   PRESET_KEYS,
   PRESETS,
@@ -2307,80 +2308,6 @@ function Field({
   );
 }
 
-// India-only phone input: locked "+91" prefix + 10-digit numeric input.
-// `storageFormat` controls the canonical value held in state:
-//   - "digits" → "91XXXXXXXXXX"   (used for WhatsApp, where wa.me wants digits only)
-//   - "pretty" → "+91 XXXXX XXXXX" (used for the contact phone shown in the footer)
-function PhoneField({
-  label,
-  value,
-  onChange,
-  required,
-  storageFormat = "digits",
-}: {
-  label: string;
-  value: string | null;
-  onChange: (v: string | null) => void;
-  required?: boolean;
-  storageFormat?: "digits" | "pretty";
-}) {
-  const allDigits = (value ?? "").replace(/\D+/g, "");
-  let local = "";
-  if (allDigits.length === 12 && allDigits.startsWith("91")) {
-    local = allDigits.slice(2);
-  } else if (allDigits.length <= 10) {
-    local = allDigits;
-  } else {
-    local = allDigits.slice(-10);
-  }
-
-  const handleChange = (next: string) => {
-    const digits = next.replace(/\D+/g, "").slice(0, 10);
-    if (digits.length === 0) {
-      onChange(null);
-      return;
-    }
-    if (storageFormat === "digits") {
-      onChange(`91${digits}`);
-      return;
-    }
-    const formatted =
-      digits.length === 10
-        ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`
-        : `+91 ${digits}`;
-    onChange(formatted);
-  };
-
-  return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-gray-700">
-        {label}
-      </label>
-      <div className="flex items-stretch overflow-hidden rounded-lg border border-gray-300 transition-colors focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500/20">
-        <span
-          aria-hidden="true"
-          className="flex select-none items-center border-r border-gray-300 bg-gray-50 px-3 text-sm font-medium text-gray-600"
-        >
-          +91
-        </span>
-        <input
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel-national"
-          value={local}
-          onChange={(e) => handleChange(e.target.value)}
-          placeholder="9876543210"
-          maxLength={10}
-          pattern="\d{10}"
-          required={required}
-          aria-label={label}
-          className="w-full bg-transparent px-3 py-2 text-sm tracking-wider outline-none"
-        />
-      </div>
-    </div>
-  );
-}
-
 function Spinner() {
   return (
     <div className="flex h-48 items-center justify-center">
@@ -2409,6 +2336,8 @@ interface SiteSettingsData {
   contactEmail: string | null;
   aboutBlurb: string | null;
   metaDescription: string | null;
+  logoUrl: string | null;
+  logoMediaFileId: string | null;
 }
 
 const DEFAULT_SETTINGS: SiteSettingsData = {
@@ -2429,6 +2358,8 @@ const DEFAULT_SETTINGS: SiteSettingsData = {
   contactEmail: null,
   aboutBlurb: null,
   metaDescription: null,
+  logoUrl: null,
+  logoMediaFileId: null,
 };
 
 function useSiteSettings() {
@@ -2460,6 +2391,8 @@ function useSiteSettings() {
           contactEmail: json.data.contactEmail ?? null,
           aboutBlurb: json.data.aboutBlurb ?? null,
           metaDescription: json.data.metaDescription ?? null,
+          logoUrl: json.data.logoUrl ?? null,
+          logoMediaFileId: json.data.logoMediaFileId ?? null,
         });
       } else {
         setSettings({ ...DEFAULT_SETTINGS });
@@ -3004,6 +2937,7 @@ function ContactEditor() {
   const { toast } = useToast();
   const { settings, setSettings, loading } = useSiteSettings();
   const [saving, setSaving] = useState(false);
+  const [showLogoPicker, setShowLogoPicker] = useState(false);
 
   if (loading || !settings) return <Spinner />;
 
@@ -3046,6 +2980,8 @@ function ContactEditor() {
         contactEmail: settings.contactEmail?.trim() || null,
         aboutBlurb: settings.aboutBlurb?.trim() || null,
         metaDescription: settings.metaDescription?.trim() || null,
+        logoUrl: settings.logoUrl || null,
+        logoMediaFileId: settings.logoMediaFileId || null,
       };
       const res = await saveSettings(payload);
       if (res.success) {
@@ -3061,8 +2997,54 @@ function ContactEditor() {
     }
   };
 
+  const logoPreviewUrl = settings.logoUrl;
+
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Site logo</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Shown in the public site header. Falls back to the default logo
+            when unset.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          {logoPreviewUrl && (
+            <div className="relative h-16 w-16 overflow-hidden rounded-full border border-gray-200">
+              <Image
+                src={logoPreviewUrl}
+                alt="Site logo preview"
+                fill
+                className="object-cover"
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowLogoPicker(true)}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            {logoPreviewUrl ? "Change Logo" : "Select Logo"}
+          </button>
+          {logoPreviewUrl && (
+            <button
+              type="button"
+              onClick={() =>
+                setSettings({
+                  ...settings,
+                  logoUrl: null,
+                  logoMediaFileId: null,
+                })
+              }
+              className="text-sm text-red-600 hover:text-red-800"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Address</h2>
@@ -3158,6 +3140,19 @@ function ContactEditor() {
           {saving ? "Saving..." : "Save Contact Details"}
         </button>
       </div>
+
+      <MediaPickerModal
+        open={showLogoPicker}
+        onClose={() => setShowLogoPicker(false)}
+        filterType="image"
+        onSelect={(file) =>
+          setSettings({
+            ...settings,
+            logoMediaFileId: file.id,
+            logoUrl: file.url,
+          })
+        }
+      />
     </div>
   );
 }

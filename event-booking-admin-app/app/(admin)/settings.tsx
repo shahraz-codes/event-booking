@@ -15,9 +15,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import ActionButton from "@/components/ActionButton";
+import MediaPicker from "@/components/MediaPicker";
 import Section from "@/components/Section";
 import { APP_NAME } from "@/lib/config";
 import { useAuth } from "@/lib/auth-context";
+import type { MediaFile } from "@/services/homepage";
 import {
   PRESET_KEYS,
   getSiteSettings,
@@ -45,6 +47,24 @@ interface Form {
   contactEmail: string;
   aboutBlurb: string;
   metaDescription: string;
+  logoUrl: string | null;
+  logoMediaFileId: string | null;
+}
+
+function logoStub(s: SiteSettings): MediaFile | null {
+  if (!s.logoMediaFileId || !s.logoUrl) return null;
+  return {
+    id: s.logoMediaFileId,
+    url: s.logoUrl,
+    publicId: "",
+    fileName: "",
+    fileSize: 0,
+    mimeType: "image/*",
+    resourceType: "image",
+    width: null,
+    height: null,
+    createdAt: "",
+  };
 }
 
 function fromSettings(s: SiteSettings): Form {
@@ -66,6 +86,8 @@ function fromSettings(s: SiteSettings): Form {
     contactEmail: s.contactEmail ?? "",
     aboutBlurb: s.aboutBlurb ?? "",
     metaDescription: s.metaDescription ?? "",
+    logoUrl: s.logoUrl ?? null,
+    logoMediaFileId: s.logoMediaFileId ?? null,
   };
 }
 
@@ -88,6 +110,8 @@ function toSettings(f: Form): SiteSettings {
     contactEmail: f.contactEmail.trim() || null,
     aboutBlurb: f.aboutBlurb.trim() || null,
     metaDescription: f.metaDescription.trim() || null,
+    logoUrl: f.logoUrl,
+    logoMediaFileId: f.logoMediaFileId,
   };
 }
 
@@ -110,13 +134,24 @@ export default function SettingsScreen() {
   });
 
   const [form, setForm] = useState<Form | null>(null);
+  const [logo, setLogo] = useState<MediaFile | null>(null);
 
   useEffect(() => {
-    if (settings) setForm(fromSettings(settings));
+    if (settings) {
+      setForm(fromSettings(settings));
+      setLogo(logoStub(settings));
+    }
   }, [settings]);
 
   const saveMutation = useMutation({
-    mutationFn: () => updateSiteSettings(toSettings(form!)),
+    mutationFn: () =>
+      updateSiteSettings(
+        toSettings({
+          ...form!,
+          logoUrl: logo?.url ?? null,
+          logoMediaFileId: logo?.id ?? null,
+        })
+      ),
     onSuccess: (saved) => {
       qc.setQueryData(["site-settings"], saved);
       Alert.alert("Saved", "Site settings updated.");
@@ -212,6 +247,30 @@ export default function SettingsScreen() {
               onPress={confirmSignOut}
               fullWidth
             />
+          </Section>
+
+          <View className="h-3" />
+
+          <Section
+            title="Site logo"
+            subtitle="Shown in the public site header. Falls back to the default when unset."
+          >
+            <MediaPicker
+              current={logo}
+              onPicked={setLogo}
+              label="Header logo (optional)"
+              aspect="square"
+            />
+            {logo ? (
+              <Pressable
+                onPress={() => setLogo(null)}
+                className="self-start mt-2 px-3 py-1.5 rounded-lg bg-red-100 active:bg-red-200"
+              >
+                <Text className="text-xs font-bold text-red-700">
+                  Remove logo
+                </Text>
+              </Pressable>
+            ) : null}
           </Section>
 
           <View className="h-3" />

@@ -21,6 +21,9 @@ import { format } from "date-fns";
 import DownloadReceipt from "@/components/BookingReceipt";
 import DownloadQuotation from "@/components/QuotationPDF";
 import Calendar, { useCalendarData } from "@/components/Calendar";
+import QRScanner from "@/components/QRScanner";
+import { BOOKING_ID_PREFIX } from "@/lib/config";
+import { EMPTY_ORG, type OrgInfo } from "@/lib/org-info";
 
 interface BookingBasic {
   bookingId: string;
@@ -172,6 +175,14 @@ function BookingStatusContent() {
   const [dateModalMode, setDateModalMode] = useState<"direct" | "request" | "pick">("direct");
   const [newDate, setNewDate] = useState<string | null>(null);
   const [dateReason, setDateReason] = useState("");
+
+  const [org, setOrg] = useState<OrgInfo>(EMPTY_ORG);
+  useEffect(() => {
+    fetch("/api/settings/public")
+      .then((r) => r.json())
+      .then((j) => { if (j.success) setOrg(j.data); })
+      .catch(() => {});
+  }, []);
 
   const { disabledDates } = useCalendarData();
 
@@ -426,7 +437,7 @@ function BookingStatusContent() {
             type="text"
             value={bookingId}
             onChange={(e) => setBookingId(e.target.value)}
-            placeholder="e.g. BNQ-2026-0001"
+            placeholder={`e.g. ${BOOKING_ID_PREFIX}-${new Date().getFullYear()}-0001`}
             className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-3 text-sm font-mono text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 sm:px-4"
           />
           <button
@@ -441,6 +452,17 @@ function BookingStatusContent() {
             )}
           </button>
         </form>
+      )}
+
+      {!authToken && (
+        <div className="mb-8">
+          <QRScanner
+            onToken={(t) => {
+              setAuthToken(t);
+              fetchStatus({ tokenOverride: t });
+            }}
+          />
+        </div>
       )}
 
       {error && (
@@ -854,6 +876,7 @@ function BookingStatusContent() {
                     createdAt: fullBooking.createdAt,
                   }}
                   quotation={fullBooking.quotation}
+                  org={org}
                 />
               </div>
             </div>
@@ -898,6 +921,7 @@ function BookingStatusContent() {
                       ...fullBooking,
                       quotation: fullBooking.quotation ?? undefined,
                     }}
+                    org={org}
                   />
                 </div>
               </div>

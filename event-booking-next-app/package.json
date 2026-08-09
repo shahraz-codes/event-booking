@@ -15,6 +15,7 @@
     "@react-pdf/renderer": "^4.4.1",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.1",
+    "@zxing/browser": "^0.2.1",
     "cloudinary": "^2.9.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
@@ -22,6 +23,7 @@
     "next-cloudinary": "^6.17.5",
     "pg": "^8.20.0",
     "prisma": "^7.6.0",
+    "qrcode.react": "^4.2.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.3.6"
