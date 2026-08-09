@@ -80,7 +80,7 @@ export default function MediaLibraryScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ["images", "videos"],
       quality: 0.85,
       base64: false,
     });

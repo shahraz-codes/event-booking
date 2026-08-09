@@ -87,9 +87,7 @@ export default function MediaPicker({
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: allowVideo
-        ? ImagePicker.MediaTypeOptions.All
-        : ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: allowVideo ? ["images", "videos"] : ["images"],
       quality: 0.85,
       base64: false,
     });
@@ -99,6 +97,7 @@ export default function MediaPicker({
 
   const busy = progress !== "idle";
   const aspectClass = aspect === "square" ? "aspect-square" : "aspect-video";
+  const isVideo = current?.resourceType === "video";
 
   return (
     <View>
@@ -114,11 +113,21 @@ export default function MediaPicker({
       >
         {current?.url ? (
           <View className="w-full h-full">
-            <Image
-              source={{ uri: current.url }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-            />
+            {isVideo ? (
+              // A video URL can't render in <Image>; show a placeholder instead.
+              <View className="w-full h-full items-center justify-center bg-gray-800">
+                <Text className="text-3xl">🎬</Text>
+                <Text className="text-[10px] text-white/80 mt-1" numberOfLines={1}>
+                  {current.fileName}
+                </Text>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: current.url }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+              />
+            )}
             <View className="absolute bottom-1 right-1 bg-black/50 px-2 py-0.5 rounded">
               <Text className="text-[10px] text-white font-semibold">
                 Tap to replace
