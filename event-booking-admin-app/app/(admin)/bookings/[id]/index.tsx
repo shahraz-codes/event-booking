@@ -88,7 +88,7 @@ export default function BookingDetailScreen() {
 
   useRealtimeComments(booking?.id ?? null);
 
-  const { data: comments } = useQuery({
+  const { data: comments, error: commentsError } = useQuery({
     queryKey: ["comments", booking?.id],
     queryFn: () => listCommentsForBooking(booking!.id),
     enabled: !!booking?.id,
@@ -582,7 +582,11 @@ export default function BookingDetailScreen() {
           <View className="h-3" />
 
           <Section title="Discussion" subtitle="Live updates via Supabase.">
-            {!comments || comments.length === 0 ? (
+            {commentsError ? (
+              <Text className="text-xs text-red-600">
+                Couldn&apos;t load messages. Pull down to refresh.
+              </Text>
+            ) : !comments || comments.length === 0 ? (
               <Text className="text-sm text-gray-500 italic">
                 No messages yet.
               </Text>
