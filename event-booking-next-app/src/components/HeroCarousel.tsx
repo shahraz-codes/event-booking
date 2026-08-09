@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useReducedMotion } from "framer-motion";
 
@@ -8,6 +8,7 @@ interface CarouselImage {
   id: string;
   imageUrl: string;
   alt: string;
+  mediaType?: "image" | "video";
 }
 
 interface HeroCarouselProps {
@@ -16,37 +17,48 @@ interface HeroCarouselProps {
 
 export default function HeroCarousel({ images }: HeroCarouselProps) {
   const [current, setCurrent] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const count = images.length;
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const reduce = useReducedMotion();
 
-  const count = images.length;
+  const goTo = useCallback((index: number) => setCurrent(index), []);
+  const advance = useCallback(() => {
+    setCurrent((c) => (c + 1) % count);
+  }, [count]);
 
-  const goTo = useCallback(
-    (index: number) => {
-      if (isTransitioning || count <= 1) return;
-      setIsTransitioning(true);
-      setCurrent(index);
-      setTimeout(() => setIsTransitioning(false), 700);
-    },
-    [isTransitioning, count]
-  );
-
-  const next = useCallback(() => {
-    goTo((current + 1) % count);
-  }, [current, count, goTo]);
-
+  // Play only the current slide's video (from the start); pause the others.
+  // Reduced-motion users: keep videos paused (no autoplay).
   useEffect(() => {
-    // UX-2/UX-3: no autoplay for reduced-motion users, single-image carousels,
-    // or while the tab is backgrounded.
-    if (count <= 1 || reduce) return;
+    videoRefs.current.forEach((v, i) => {
+      if (!v) return;
+      if (i === current && !reduce) {
+        try {
+          v.currentTime = 0;
+        } catch {
+          /* ignore */
+        }
+        void v.play().catch(() => {});
+      } else {
+        v.pause();
+      }
+    });
+  }, [current, reduce]);
 
-    let timer: ReturnType<typeof setInterval> | null = null;
+  // Image slides auto-advance after 5s. Video slides are NOT timed here — they
+  // advance when the video finishes (see onEnded on the <video> below).
+  // No autoplay for reduced-motion users, single-image carousels, or while the
+  // tab is backgrounded.
+  useEffect(() => {
+    if (count <= 1 || reduce) return;
+    if (images[current]?.mediaType === "video") return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const start = () => {
-      if (timer === null) timer = setInterval(next, 5000);
+      if (timer === null) timer = setTimeout(advance, 5000);
     };
     const stop = () => {
       if (timer !== null) {
-        clearInterval(timer);
+        clearTimeout(timer);
         timer = null;
       }
     };
@@ -55,13 +67,13 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
       else start();
     };
 
-    start();
+    if (document.visibilityState !== "hidden") start();
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       stop();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [next, count, reduce]);
+  }, [current, count, images, advance, reduce]);
 
   if (count === 0) return null;
 
@@ -74,14 +86,32 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
             i === current ? "opacity-100" : "opacity-0"
           }`}
         >
-          <Image
-            src={img.imageUrl}
-            alt={img.alt || "Hero image"}
-            fill
-            className="object-cover"
-            priority={i === 0}
-            sizes="100vw"
-          />
+          {img.mediaType === "video" ? (
+            <video
+              ref={(el) => {
+                videoRefs.current[i] = el;
+              }}
+              src={img.imageUrl}
+              className="absolute inset-0 h-full w-full object-cover"
+              muted
+              playsInline
+              loop={count <= 1}
+              preload={i === current ? "auto" : "metadata"}
+              onEnded={() => {
+                if (!reduce && count > 1 && i === current) advance();
+              }}
+              aria-label={img.alt || "Hero video"}
+            />
+          ) : (
+            <Image
+              src={img.imageUrl}
+              alt={img.alt || "Hero image"}
+              fill
+              className="object-cover"
+              priority={i === 0}
+              sizes="100vw"
+            />
+          )}
           <div className="absolute inset-0 bg-black/50" />
         </div>
       ))}
@@ -113,7 +143,9 @@ export default function HeroCarousel({ images }: HeroCarouselProps) {
                 key={i}
                 onClick={() => goTo(i)}
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  i === current ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/70"
+                  i === current
+                    ? "w-6 bg-white"
+                    : "w-2 bg-white/50 hover:bg-white/70"
                 }`}
                 aria-label={`Go to slide ${i + 1}`}
               />
