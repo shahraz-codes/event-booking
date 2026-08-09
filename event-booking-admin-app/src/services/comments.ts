@@ -10,7 +10,7 @@ export async function listCommentsForBooking(
   bookingDbId: string
 ): Promise<BookingComment[]> {
   const { data, error } = await supabase
-    .from("BookingComment")
+    .from("Comment")
     .select("id, message, sender, createdAt")
     .eq("bookingId", bookingDbId)
     .order("createdAt", { ascending: true })
