@@ -106,7 +106,7 @@ export default function GalleryScreen() {
               <MediaPicker
                 current={media}
                 onPicked={setMedia}
-                label="Image"
+                label="Media"
                 aspect="video"
               />
               <View className="h-2" />

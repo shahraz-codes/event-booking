@@ -100,7 +100,7 @@ export default function CarouselScreen() {
               <MediaPicker
                 current={picked}
                 onPicked={setPicked}
-                label="Image"
+                label="Media"
                 aspect="video"
               />
               <View className="h-2" />

@@ -1086,10 +1086,10 @@ function CarouselEditor() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">
-            Hero Carousel Images
+            Hero Carousel Media
           </h2>
           <p className="text-sm text-gray-500">
-            These images rotate behind the hero text. Add at least 2 for a
+            These media rotate behind the hero text. Add at least 2 for a
             carousel effect.
           </p>
         </div>
@@ -1100,7 +1100,7 @@ function CarouselEditor() {
           }}
           className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 sm:self-auto"
         >
-          Add Image
+          Add Media
         </button>
       </div>
 
@@ -1109,7 +1109,7 @@ function CarouselEditor() {
           onSave={() => {
             setShowAddForm(false);
             fetchItems();
-            toast("success", "Carousel image added");
+            toast("success", "Carousel media added");
           }}
           onCancel={() => setShowAddForm(false)}
         />
@@ -1117,7 +1117,7 @@ function CarouselEditor() {
 
       {items.length === 0 && !showAddForm ? (
         <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-500">
-          No carousel images yet. The hero will use the default gradient
+          No carousel media yet. The hero will use the default gradient
           background until you add images here.
         </div>
       ) : (
@@ -1130,7 +1130,7 @@ function CarouselEditor() {
                 onSave={() => {
                   setEditingId(null);
                   fetchItems();
-                  toast("success", "Carousel image updated");
+                  toast("success", "Carousel media updated");
                 }}
                 onCancel={() => setEditingId(null)}
               />
@@ -1262,7 +1262,7 @@ function CarouselImageForm({
         className="rounded-xl border border-brand-200 bg-brand-50/50 p-5 shadow-sm"
       >
         <h3 className="mb-4 font-semibold text-gray-900">
-          {item ? "Edit Carousel Image" : "New Carousel Image"}
+          {item ? "Edit Carousel Media" : "New Carousel Media"}
         </h3>
         <div className="space-y-4">
           <div>
@@ -1285,7 +1285,7 @@ function CarouselImageForm({
                 onClick={() => setShowPicker(true)}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                {previewUrl ? "Change Image" : "Select from Media Library"}
+                {previewUrl ? "Change Media" : "Select from Media Library"}
               </button>
             </div>
           </div>
