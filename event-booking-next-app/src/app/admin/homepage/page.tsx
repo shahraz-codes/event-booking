@@ -293,6 +293,11 @@ function AdminHomepageContent() {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+function getVideoThumbnail(publicId: string) {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  return `https://res.cloudinary.com/${cloudName}/video/upload/so_0,w_400,h_225,c_fill/${publicId}.jpg`;
+}
+
 function formatBytes(bytes: number) {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -432,11 +437,6 @@ function MediaLibraryEditor() {
     } finally {
       setDeleting(null);
     }
-  };
-
-  const getVideoThumbnail = (publicId: string) => {
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    return `https://res.cloudinary.com/${cloudName}/video/upload/so_0,w_400,h_225,c_fill/${publicId}.jpg`;
   };
 
   if (loading) return <Spinner />;
@@ -1142,16 +1142,32 @@ function CarouselEditor() {
                 }`}
               >
                 <div className="relative aspect-video bg-gray-100">
-                  {(item.mediaFile?.url || item.imageUrl?.startsWith("http")) ? (
+                  {item.mediaFile?.resourceType === "video" ? (
+                    <>
+                      <Image
+                        src={getVideoThumbnail(item.mediaFile.publicId)}
+                        alt={item.alt || "Carousel media"}
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-black/50 p-2">
+                          <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  ) : item.mediaFile?.url || item.imageUrl?.startsWith("http") ? (
                     <Image
                       src={item.mediaFile?.url ?? item.imageUrl}
-                      alt={item.alt || "Carousel image"}
+                      alt={item.alt || "Carousel media"}
                       fill
                       className="object-cover"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-gray-400">
-                      No image
+                      No media
                     </div>
                   )}
                 </div>
@@ -1272,12 +1288,30 @@ function CarouselImageForm({
             <div className="flex items-center gap-3">
               {previewUrl && (
                 <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg border border-gray-200">
-                  <Image
-                    src={previewUrl}
-                    alt="Preview"
-                    fill
-                    className="object-cover"
-                  />
+                  {selectedMedia?.resourceType === "video" ? (
+                    <>
+                      <Image
+                        src={getVideoThumbnail(selectedMedia.publicId)}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-black/50 p-2">
+                          <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <Image
+                      src={previewUrl}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                    />
+                  )}
                 </div>
               )}
               <button
@@ -1447,7 +1481,23 @@ function GalleryEditor() {
               >
                 <div className="flex items-center gap-3 sm:contents">
                   <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                    {(item.mediaFile?.url || item.imageUrl?.startsWith("http")) ? (
+                    {item.mediaFile?.resourceType === "video" ? (
+                      <>
+                        <Image
+                          src={getVideoThumbnail(item.mediaFile.publicId)}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="rounded-full bg-black/50 p-2">
+                            <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </>
+                    ) : item.mediaFile?.url || item.imageUrl?.startsWith("http") ? (
                       <Image
                         src={item.mediaFile?.url ?? item.imageUrl}
                         alt={item.title}
@@ -1456,7 +1506,7 @@ function GalleryEditor() {
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-xs text-gray-400">
-                        No image
+                        No media
                       </div>
                     )}
                   </div>
@@ -1615,12 +1665,30 @@ function GalleryItemForm({
             <div className="flex items-center gap-3">
               {previewUrl && (
                 <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg border border-gray-200">
-                  <Image
-                    src={previewUrl}
-                    alt="Preview"
-                    fill
-                    className="object-cover"
-                  />
+                  {selectedMedia?.resourceType === "video" ? (
+                    <>
+                      <Image
+                        src={getVideoThumbnail(selectedMedia.publicId)}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-black/50 p-1">
+                          <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <Image
+                      src={previewUrl}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                    />
+                  )}
                 </div>
               )}
               <button
