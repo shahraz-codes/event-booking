@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import ActionButton from "@/components/ActionButton";
+import AdminCalendar from "@/components/AdminCalendar";
 import Section from "@/components/Section";
 import { apiFetch } from "@/lib/api-client";
 import { formatDate } from "@/lib/format";
@@ -21,31 +22,23 @@ interface CalendarData {
   bookedDates: string[];
   blockedDates: string[];
 }
-
 type CalendarInfo = Record<string, { approved: string[]; pending: string[] }>;
 
 async function fetchCalendar(): Promise<CalendarData> {
-  const today = new Date();
-  const todayIso = today.toISOString().slice(0, 10);
-
+  const todayIso = new Date().toISOString().slice(0, 10);
   const [booked, blocked] = await Promise.all([
     supabase
       .from("Booking")
       .select("date")
       .gte("date", todayIso)
       .in("status", ["APPROVED", "QUOTATION_FINALIZED"]),
-    supabase
-      .from("BlockedDate")
-      .select("date, reason")
-      .gte("date", todayIso),
+    supabase.from("BlockedDate").select("date, reason").gte("date", todayIso),
   ]);
-
   if (booked.error) throw new Error(booked.error.message);
   if (blocked.error) throw new Error(blocked.error.message);
-
   return {
-    bookedDates: (booked.data ?? []).map((r: { date: string }) => r.date),
-    blockedDates: (blocked.data ?? []).map((r: { date: string }) => r.date),
+    bookedDates: (booked.data ?? []).map((r: { date: string }) => r.date.slice(0, 10)),
+    blockedDates: (blocked.data ?? []).map((r: { date: string }) => r.date.slice(0, 10)),
   };
 }
 
@@ -53,26 +46,12 @@ async function fetchCalendarInfo(): Promise<CalendarInfo> {
   return apiFetch<CalendarInfo>("/api/admin/calendar");
 }
 
-function showDateInfo(date: string, info?: { approved: string[]; pending: string[] }) {
-  const lines: string[] = [];
-  if (info?.approved?.length) {
-    lines.push(`Booked: ${info.approved.join(", ")}`);
-  }
-  if (info?.pending?.length) {
-    lines.push(`Pending: ${info.pending.join(", ")}`);
-  }
-  Alert.alert(
-    formatDate(date),
-    lines.length ? lines.join("\n") : "No booking IDs for this date."
-  );
-}
-
 export default function CalendarScreen() {
   const qc = useQueryClient();
-  const [newDate, setNewDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [reason, setReason] = useState("");
 
-  const { data, isLoading, isRefetching, refetch } = useQuery({
+  const { data, isLoading, isError, error, isRefetching, refetch } = useQuery({
     queryKey: ["calendar"],
     queryFn: fetchCalendar,
   });
@@ -86,7 +65,7 @@ export default function CalendarScreen() {
     mutationFn: (payload: { date: string; reason?: string }) =>
       apiFetch("/api/admin/blocked-dates", { method: "POST", body: payload }),
     onSuccess: () => {
-      setNewDate("");
+      setSelectedDate(null);
       setReason("");
       qc.invalidateQueries({ queryKey: ["calendar"] });
       qc.invalidateQueries({ queryKey: ["calendar-info"] });
@@ -97,10 +76,7 @@ export default function CalendarScreen() {
 
   const unblockMutation = useMutation({
     mutationFn: (date: string) =>
-      apiFetch("/api/admin/blocked-dates", {
-        method: "DELETE",
-        body: { date },
-      }),
+      apiFetch("/api/admin/blocked-dates", { method: "DELETE", body: { date } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["calendar"] });
       qc.invalidateQueries({ queryKey: ["calendar-info"] });
@@ -108,13 +84,26 @@ export default function CalendarScreen() {
     onError: (err: Error) => Alert.alert("Failed", err.message),
   });
 
+  function showBookedInfo(date: string) {
+    const info = calendarInfo?.[date];
+    const lines: string[] = [];
+    if (info?.approved?.length) lines.push(`Booked: ${info.approved.join(", ")}`);
+    if (info?.pending?.length) lines.push(`Pending: ${info.pending.join(", ")}`);
+    Alert.alert(formatDate(date), lines.length ? lines.join("\n") : "Booked.");
+  }
+
+  function confirmUnblock(date: string) {
+    Alert.alert(formatDate(date), "This date is blocked.", [
+      { text: "Close", style: "cancel" },
+      { text: "Unblock", style: "destructive", onPress: () => unblockMutation.mutate(date) },
+    ]);
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <View className="px-4 pt-2 pb-3 bg-white border-b border-gray-200">
         <Text className="text-2xl font-extrabold text-gray-900">Calendar</Text>
-        <Text className="text-xs text-gray-500 mt-0.5">
-          Booked & blocked dates
-        </Text>
+        <Text className="text-xs text-gray-500 mt-0.5">Booked & blocked dates</Text>
       </View>
 
       <FlatList
@@ -132,18 +121,29 @@ export default function CalendarScreen() {
         }
         ListHeaderComponent={
           <View className="gap-3 mb-4">
+            {isError ? (
+              <Text className="text-sm text-red-600 px-1">
+                Couldn&apos;t load calendar: {error instanceof Error ? error.message : "error"}
+              </Text>
+            ) : null}
+
+            <AdminCalendar
+              bookedDates={data?.bookedDates ?? []}
+              blockedDates={data?.blockedDates ?? []}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              onPressBooked={showBookedInfo}
+            />
+
             <Section
-              title="Block a new date"
-              subtitle="Enter date in YYYY-MM-DD format."
+              title="Block a date"
+              subtitle={
+                selectedDate
+                  ? `Selected: ${formatDate(selectedDate)}`
+                  : "Tap an available date in the calendar above."
+              }
             >
               <View className="gap-2">
-                <TextInput
-                  value={newDate}
-                  onChangeText={setNewDate}
-                  placeholder="2026-12-25"
-                  autoCapitalize="none"
-                  className="border border-gray-300 rounded-lg p-3 text-sm text-gray-900"
-                />
                 <TextInput
                   value={reason}
                   onChangeText={setReason}
@@ -151,48 +151,17 @@ export default function CalendarScreen() {
                   className="border border-gray-300 rounded-lg p-3 text-sm text-gray-900"
                 />
                 <ActionButton
-                  label="Block date"
+                  label="Block selected date"
                   variant="primary"
+                  disabled={!selectedDate}
                   onPress={() => {
-                    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-                      Alert.alert("Invalid", "Use format YYYY-MM-DD");
-                      return;
-                    }
-                    blockMutation.mutate({
-                      date: newDate,
-                      reason: reason || undefined,
-                    });
+                    if (!selectedDate) return;
+                    blockMutation.mutate({ date: selectedDate, reason: reason || undefined });
                   }}
                   loading={blockMutation.isPending}
                   fullWidth
                 />
               </View>
-            </Section>
-
-            <Section
-              title={`Booked dates (${data?.bookedDates.length ?? 0})`}
-            >
-              {!data?.bookedDates.length ? (
-                <Text className="text-sm text-gray-500 italic">
-                  No upcoming bookings.
-                </Text>
-              ) : (
-                data.bookedDates.map((d) => (
-                  <Pressable
-                    key={d}
-                    onPress={() => showDateInfo(d, calendarInfo?.[d])}
-                    onLongPress={() => showDateInfo(d, calendarInfo?.[d])}
-                    className="py-1"
-                  >
-                    <Text className="text-sm text-gray-700">
-                      • {formatDate(d)}
-                      {calendarInfo?.[d]?.approved?.length
-                        ? `  (${calendarInfo[d].approved.join(", ")})`
-                        : ""}
-                    </Text>
-                  </Pressable>
-                ))
-              )}
             </Section>
 
             <View className="px-1">
@@ -203,10 +172,11 @@ export default function CalendarScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View className="bg-white rounded-xl border border-gray-200 p-3 mb-2 flex-row items-center justify-between">
-            <Text className="text-sm font-semibold text-gray-900">
-              {formatDate(item)}
-            </Text>
+          <Pressable
+            onPress={() => confirmUnblock(item)}
+            className="bg-white rounded-xl border border-gray-200 p-3 mb-2 flex-row items-center justify-between"
+          >
+            <Text className="text-sm font-semibold text-gray-900">{formatDate(item)}</Text>
             <ActionButton
               label="Unblock"
               variant="secondary"
@@ -214,12 +184,10 @@ export default function CalendarScreen() {
               onPress={() => unblockMutation.mutate(item)}
               loading={unblockMutation.isPending}
             />
-          </View>
+          </Pressable>
         )}
         ListEmptyComponent={
-          <Text className="text-sm text-gray-500 italic px-2">
-            No blocked dates.
-          </Text>
+          <Text className="text-sm text-gray-500 italic px-2">No blocked dates.</Text>
         }
       />
     </SafeAreaView>
