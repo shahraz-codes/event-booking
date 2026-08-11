@@ -88,7 +88,7 @@ export default function BookingDetailScreen() {
 
   useRealtimeComments(booking?.id ?? null);
 
-  const { data: comments } = useQuery({
+  const { data: comments, error: commentsError } = useQuery({
     queryKey: ["comments", booking?.id],
     queryFn: () => listCommentsForBooking(booking!.id),
     enabled: !!booking?.id,
@@ -119,13 +119,14 @@ export default function BookingDetailScreen() {
   function confirmAction(
     action: AdminBookingAction,
     label: string,
-    extras: Partial<AdminActionPayload> = {}
+    extras: Partial<AdminActionPayload> = {},
+    options: { destructive?: boolean } = {}
   ) {
     Alert.alert(label, `${label} for ${bookingId}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Yes",
-        style: "destructive",
+        style: options.destructive ? "destructive" : "default",
         onPress: () =>
           actionMutation.mutate({
             bookingId,
@@ -360,7 +361,9 @@ export default function BookingDetailScreen() {
                         onPress={() =>
                           confirmAction(
                             "declineCancellation",
-                            "Decline cancellation"
+                            "Decline cancellation",
+                            {},
+                            { destructive: true }
                           )
                         }
                         loading={actionMutation.isPending}
@@ -423,7 +426,9 @@ export default function BookingDetailScreen() {
                         onPress={() =>
                           confirmAction(
                             "declineDateChange",
-                            "Decline date change"
+                            "Decline date change",
+                            {},
+                            { destructive: true }
                           )
                         }
                         loading={actionMutation.isPending}
@@ -521,7 +526,11 @@ export default function BookingDetailScreen() {
                   <ActionButton
                     label="Reject booking"
                     variant="danger"
-                    onPress={() => confirmAction("reject", "Reject booking")}
+                    onPress={() =>
+                      confirmAction("reject", "Reject booking", {}, {
+                        destructive: true,
+                      })
+                    }
                     loading={actionMutation.isPending}
                     fullWidth
                   />
@@ -544,7 +553,11 @@ export default function BookingDetailScreen() {
                 <ActionButton
                   label="Cancel booking"
                   variant="danger"
-                  onPress={() => confirmAction("cancel", "Cancel booking")}
+                  onPress={() =>
+                    confirmAction("cancel", "Cancel booking", {}, {
+                      destructive: true,
+                    })
+                  }
                   loading={actionMutation.isPending}
                   fullWidth
                 />
@@ -582,7 +595,11 @@ export default function BookingDetailScreen() {
           <View className="h-3" />
 
           <Section title="Discussion" subtitle="Live updates via Supabase.">
-            {!comments || comments.length === 0 ? (
+            {commentsError ? (
+              <Text className="text-xs text-red-600">
+                Couldn&apos;t load messages. Pull down to refresh.
+              </Text>
+            ) : !comments || comments.length === 0 ? (
               <Text className="text-sm text-gray-500 italic">
                 No messages yet.
               </Text>

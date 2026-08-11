@@ -293,6 +293,11 @@ function AdminHomepageContent() {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+function getVideoThumbnail(publicId: string) {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  return `https://res.cloudinary.com/${cloudName}/video/upload/so_0,w_400,h_225,c_fill/${publicId}.jpg`;
+}
+
 function formatBytes(bytes: number) {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -432,11 +437,6 @@ function MediaLibraryEditor() {
     } finally {
       setDeleting(null);
     }
-  };
-
-  const getVideoThumbnail = (publicId: string) => {
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    return `https://res.cloudinary.com/${cloudName}/video/upload/so_0,w_400,h_225,c_fill/${publicId}.jpg`;
   };
 
   if (loading) return <Spinner />;
@@ -1086,10 +1086,10 @@ function CarouselEditor() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">
-            Hero Carousel Images
+            Hero Carousel Media
           </h2>
           <p className="text-sm text-gray-500">
-            These images rotate behind the hero text. Add at least 2 for a
+            These media rotate behind the hero text. Add at least 2 for a
             carousel effect.
           </p>
         </div>
@@ -1100,7 +1100,7 @@ function CarouselEditor() {
           }}
           className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 sm:self-auto"
         >
-          Add Image
+          Add Media
         </button>
       </div>
 
@@ -1109,7 +1109,7 @@ function CarouselEditor() {
           onSave={() => {
             setShowAddForm(false);
             fetchItems();
-            toast("success", "Carousel image added");
+            toast("success", "Carousel media added");
           }}
           onCancel={() => setShowAddForm(false)}
         />
@@ -1117,7 +1117,7 @@ function CarouselEditor() {
 
       {items.length === 0 && !showAddForm ? (
         <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-500">
-          No carousel images yet. The hero will use the default gradient
+          No carousel media yet. The hero will use the default gradient
           background until you add images here.
         </div>
       ) : (
@@ -1130,7 +1130,7 @@ function CarouselEditor() {
                 onSave={() => {
                   setEditingId(null);
                   fetchItems();
-                  toast("success", "Carousel image updated");
+                  toast("success", "Carousel media updated");
                 }}
                 onCancel={() => setEditingId(null)}
               />
@@ -1142,16 +1142,32 @@ function CarouselEditor() {
                 }`}
               >
                 <div className="relative aspect-video bg-gray-100">
-                  {(item.mediaFile?.url || item.imageUrl?.startsWith("http")) ? (
+                  {item.mediaFile?.resourceType === "video" ? (
+                    <>
+                      <Image
+                        src={getVideoThumbnail(item.mediaFile.publicId)}
+                        alt={item.alt || "Carousel media"}
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-black/50 p-2">
+                          <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  ) : item.mediaFile?.url || item.imageUrl?.startsWith("http") ? (
                     <Image
                       src={item.mediaFile?.url ?? item.imageUrl}
-                      alt={item.alt || "Carousel image"}
+                      alt={item.alt || "Carousel media"}
                       fill
                       className="object-cover"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-gray-400">
-                      No image
+                      No media
                     </div>
                   )}
                 </div>
@@ -1262,7 +1278,7 @@ function CarouselImageForm({
         className="rounded-xl border border-brand-200 bg-brand-50/50 p-5 shadow-sm"
       >
         <h3 className="mb-4 font-semibold text-gray-900">
-          {item ? "Edit Carousel Image" : "New Carousel Image"}
+          {item ? "Edit Carousel Media" : "New Carousel Media"}
         </h3>
         <div className="space-y-4">
           <div>
@@ -1272,12 +1288,30 @@ function CarouselImageForm({
             <div className="flex items-center gap-3">
               {previewUrl && (
                 <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-lg border border-gray-200">
-                  <Image
-                    src={previewUrl}
-                    alt="Preview"
-                    fill
-                    className="object-cover"
-                  />
+                  {selectedMedia?.resourceType === "video" ? (
+                    <>
+                      <Image
+                        src={getVideoThumbnail(selectedMedia.publicId)}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-black/50 p-2">
+                          <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <Image
+                      src={previewUrl}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                    />
+                  )}
                 </div>
               )}
               <button
@@ -1285,7 +1319,7 @@ function CarouselImageForm({
                 onClick={() => setShowPicker(true)}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                {previewUrl ? "Change Image" : "Select from Media Library"}
+                {previewUrl ? "Change Media" : "Select from Media Library"}
               </button>
             </div>
           </div>
@@ -1447,7 +1481,23 @@ function GalleryEditor() {
               >
                 <div className="flex items-center gap-3 sm:contents">
                   <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                    {(item.mediaFile?.url || item.imageUrl?.startsWith("http")) ? (
+                    {item.mediaFile?.resourceType === "video" ? (
+                      <>
+                        <Image
+                          src={getVideoThumbnail(item.mediaFile.publicId)}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="rounded-full bg-black/50 p-2">
+                            <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </>
+                    ) : item.mediaFile?.url || item.imageUrl?.startsWith("http") ? (
                       <Image
                         src={item.mediaFile?.url ?? item.imageUrl}
                         alt={item.title}
@@ -1456,7 +1506,7 @@ function GalleryEditor() {
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-xs text-gray-400">
-                        No image
+                        No media
                       </div>
                     )}
                   </div>
@@ -1615,12 +1665,30 @@ function GalleryItemForm({
             <div className="flex items-center gap-3">
               {previewUrl && (
                 <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-lg border border-gray-200">
-                  <Image
-                    src={previewUrl}
-                    alt="Preview"
-                    fill
-                    className="object-cover"
-                  />
+                  {selectedMedia?.resourceType === "video" ? (
+                    <>
+                      <Image
+                        src={getVideoThumbnail(selectedMedia.publicId)}
+                        alt="Preview"
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full bg-black/50 p-1">
+                          <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <Image
+                      src={previewUrl}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                    />
+                  )}
                 </div>
               )}
               <button

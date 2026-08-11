@@ -7,8 +7,10 @@ discussion threads.
 ## Architecture
 
 - **Reads**: Direct from Supabase via `@supabase/supabase-js`, gated by RLS.
-- **Realtime**: `Booking` and `BookingComment` tables push live updates over
-  Supabase Realtime channels (see `src/hooks/useRealtime*.ts`).
+- **Realtime**: `Booking` and `Comment` tables push live updates over
+  Supabase Realtime channels (see `src/hooks/useRealtime*.ts`). Both tables
+  must be added to the `supabase_realtime` publication (Database → Replication)
+  or the UI only updates on pull-to-refresh.
 - **Writes**: Go through the Next.js app's `/api/admin/*` endpoints. The
   app attaches `Authorization: Bearer <supabase-access-token>`; the Next.js
   server verifies it against `admin_users` in Supabase
@@ -41,7 +43,7 @@ discussion threads.
 
 These steps must be done in the Supabase dashboard **before** signing in:
 
-1. Enable Realtime for the `Booking` and `BookingComment` tables
+1. Enable Realtime for the `Booking` and `Comment` tables
    (Database → Replication → `supabase_realtime`).
 2. Apply RLS policies so admin users (members of `admin_users`) can
    `SELECT` from the tables above.

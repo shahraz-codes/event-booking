@@ -28,7 +28,7 @@ export default function HeroEditorScreen() {
   const router = useRouter();
   const qc = useQueryClient();
 
-  const { data: hero, isLoading } = useQuery({
+  const { data: hero, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["hero"],
     queryFn: getHero,
   });
@@ -78,6 +78,18 @@ export default function HeroEditorScreen() {
       return;
     }
     saveMutation.mutate();
+  }
+
+  if (isError) {
+    return (
+      <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
+        <Text className="text-red-600 text-center mb-3">
+          Couldn&apos;t load hero.{"\n"}
+          {error instanceof Error ? error.message : "Unknown error"}
+        </Text>
+        <ActionButton label="Retry" variant="secondary" onPress={() => refetch()} />
+      </SafeAreaView>
+    );
   }
 
   if (isLoading) {

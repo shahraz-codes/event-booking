@@ -16,7 +16,7 @@ export function useRealtimeComments(bookingDbId: string | null | undefined) {
         {
           event: "*",
           schema: "public",
-          table: "BookingComment",
+          table: "Comment",
           filter: `bookingId=eq.${bookingDbId}`,
         },
         () => {

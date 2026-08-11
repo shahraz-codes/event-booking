@@ -8,8 +8,9 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/config";
 
 /**
  * SecureStore caps each value at ~2KB. Supabase session JSON can occasionally
- * exceed that with provider metadata, so we fall back to AsyncStorage on
- * native when values are too large to avoid `set value` errors.
+ * exceed that, so we fall back to AsyncStorage for large values. Whichever
+ * store we write to, we clear the other one so a read never returns a stale
+ * copy (getItem checks SecureStore first).
  */
 const SECURE_STORE_BYTE_LIMIT = 2000;
 
@@ -34,12 +35,20 @@ const hybridStorage = {
     if (value.length < SECURE_STORE_BYTE_LIMIT) {
       try {
         await SecureStore.setItemAsync(key, value);
+        // Clear any older large-value copy so getItem can't return it.
+        await AsyncStorage.removeItem(key);
         return;
       } catch {
-        // fall through
+        // fall through to AsyncStorage
       }
     }
     await AsyncStorage.setItem(key, value);
+    // Clear any older small-value copy in SecureStore (checked first on read).
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {
+      // ignore
+    }
   },
   removeItem: async (key: string): Promise<void> => {
     if (Platform.OS === "web") {

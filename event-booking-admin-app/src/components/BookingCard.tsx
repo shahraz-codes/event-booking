@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
 
@@ -9,7 +10,7 @@ interface Props {
   booking: BookingRecord;
 }
 
-export default function BookingCard({ booking }: Props) {
+function BookingCard({ booking }: Props) {
   return (
     <Link href={`/(admin)/bookings/${booking.bookingId}`} asChild>
       <Pressable className="bg-white rounded-2xl border border-gray-200 p-4 mb-3 active:opacity-70">
@@ -50,10 +51,12 @@ export default function BookingCard({ booking }: Props) {
             className="text-xs text-gray-600 mt-2 italic"
             numberOfLines={2}
           >
-            "{booking.notes}"
+            &quot;{booking.notes}&quot;
           </Text>
         ) : null}
       </Pressable>
     </Link>
   );
 }
+
+export default memo(BookingCard);

@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/lib/supabase";
@@ -30,28 +37,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  // Cache the admin result per user id so token refreshes don't re-query.
+  const adminCache = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     let mounted = true;
 
+    const resolveAdmin = async (userId: string | undefined) => {
+      if (!userId) {
+        if (mounted) setIsAdmin(false);
+        return;
+      }
+      if (userId in adminCache.current) {
+        if (mounted) setIsAdmin(adminCache.current[userId]);
+        return;
+      }
+      const ok = await checkAdmin(userId);
+      adminCache.current[userId] = ok;
+      if (mounted) setIsAdmin(ok);
+    };
+
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return;
       setSession(data.session);
-      if (data.session?.user) {
-        setIsAdmin(await checkAdmin(data.session.user.id));
-      }
+      await resolveAdmin(data.session?.user?.id);
       setLoading(false);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      (_event, newSession) => {
         if (!mounted) return;
         setSession(newSession);
-        if (newSession?.user) {
-          setIsAdmin(await checkAdmin(newSession.user.id));
-        } else {
-          setIsAdmin(false);
-        }
+        // Defer Supabase calls OUT of the auth callback to avoid deadlocks.
+        setTimeout(() => {
+          void resolveAdmin(newSession?.user?.id);
+        }, 0);
       }
     );
 
@@ -75,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       signOut: async () => {
         await supabase.auth.signOut();
+        adminCache.current = {};
       },
     }),
     [session, loading, isAdmin]

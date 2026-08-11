@@ -59,17 +59,41 @@ export async function apiFetch<T = unknown>(
   }
 
   const url = buildUrl(path, query);
+
+  // Fail fast (15s) so an unreachable API surfaces an error instead of hanging.
+  const timeoutController = new AbortController();
+  const timeout = setTimeout(() => timeoutController.abort(), 15_000);
+  // If the caller passed their own signal, abort our request when theirs aborts.
+  if (signal) {
+    if (signal.aborted) timeoutController.abort();
+    else signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
+  }
+
   const init: RequestInit = {
     method,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    signal,
+    signal: timeoutController.signal,
   };
   if (body !== undefined) init.body = JSON.stringify(body);
 
-  const res = await fetch(url, init);
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (err) {
+    clearTimeout(timeout);
+    const aborted = err instanceof Error && err.name === "AbortError";
+    throw new ApiError(
+      aborted
+        ? "The server took too long to respond. Check your connection and that the app is pointed at the right backend."
+        : `Network error: ${err instanceof Error ? err.message : "request failed"}`,
+      0,
+      null
+    );
+  }
+  clearTimeout(timeout);
 
   const text = await res.text();
   let payload: unknown = null;

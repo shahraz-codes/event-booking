@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ActionButton from "@/components/ActionButton";
 import MediaPicker from "@/components/MediaPicker";
 import Section from "@/components/Section";
+import { cloudinaryVideoPoster } from "@/lib/media";
 import {
   createGalleryItem,
   deleteGalleryItem,
@@ -29,7 +30,7 @@ export default function GalleryScreen() {
   const router = useRouter();
   const qc = useQueryClient();
 
-  const { data: items, isLoading } = useQuery({
+  const { data: items, isLoading, isError, error } = useQuery({
     queryKey: ["gallery"],
     queryFn: listGallery,
   });
@@ -106,7 +107,7 @@ export default function GalleryScreen() {
               <MediaPicker
                 current={media}
                 onPicked={setMedia}
-                label="Image"
+                label="Media"
                 aspect="video"
               />
               <View className="h-2" />
@@ -143,11 +144,29 @@ export default function GalleryScreen() {
         }
         renderItem={({ item }) => (
           <View className="bg-white rounded-2xl border border-gray-200 p-3 mb-2">
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={{ width: "100%", height: 140, borderRadius: 8 }}
-              resizeMode="cover"
-            />
+            {item.mediaFile?.resourceType === "video" ? (
+              <View style={{ position: "relative" }}>
+                <Image
+                  source={{ uri: cloudinaryVideoPoster(item.imageUrl) ?? item.imageUrl }}
+                  style={{ width: "100%", height: 140, borderRadius: 8 }}
+                  resizeMode="cover"
+                />
+                <View
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                  className="items-center justify-center"
+                >
+                  <View className="h-10 w-10 rounded-full bg-black/50 items-center justify-center">
+                    <Text className="text-white text-base">▶</Text>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={{ width: "100%", height: 140, borderRadius: 8 }}
+                resizeMode="cover"
+              />
+            )}
             <Text className="text-base font-bold text-gray-900 mt-2">
               {item.title}
             </Text>
@@ -184,6 +203,10 @@ export default function GalleryScreen() {
             <View className="py-10 items-center">
               <ActivityIndicator />
             </View>
+          ) : isError ? (
+            <Text className="text-sm text-red-600 px-2">
+              Couldn&apos;t load: {error instanceof Error ? error.message : "Unknown error"}
+            </Text>
           ) : (
             <Text className="text-sm text-gray-500 italic px-2">
               No gallery items yet.
