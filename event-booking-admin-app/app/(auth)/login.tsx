@@ -2,12 +2,14 @@ import { useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import ActionButton from "@/components/ActionButton";
 import { APP_NAME } from "@/lib/config";
@@ -17,6 +19,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,15 +80,29 @@ export default function LoginScreen() {
                 <Text className="text-xs font-semibold text-gray-700 mb-1.5">
                   Password
                 </Text>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoComplete="current-password"
-                  textContentType="password"
-                  placeholder="••••••••"
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900"
-                />
+                <View className="relative">
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoComplete="current-password"
+                    textContentType="password"
+                    placeholder="••••••••"
+                    className="border border-gray-300 rounded-xl px-4 py-3 pr-12 text-base text-gray-900"
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword((s) => !s)}
+                    hitSlop={8}
+                    accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-0 bottom-0 justify-center"
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color="#6b7280"
+                    />
+                  </Pressable>
+                </View>
               </View>
 
               {error ? (
