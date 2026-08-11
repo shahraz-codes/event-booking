@@ -128,7 +128,7 @@ export default function SettingsScreen() {
   const { session, signOut } = useAuth();
   const qc = useQueryClient();
 
-  const { data: settings, isLoading } = useQuery({
+  const { data: settings, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["site-settings"],
     queryFn: getSiteSettings,
   });
@@ -214,6 +214,18 @@ export default function SettingsScreen() {
       return;
     }
     saveMutation.mutate();
+  }
+
+  if (isError) {
+    return (
+      <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
+        <Text className="text-red-600 text-center mb-3">
+          Couldn&apos;t load settings.{"\n"}
+          {error instanceof Error ? error.message : "Unknown error"}
+        </Text>
+        <ActionButton label="Retry" variant="secondary" onPress={() => refetch()} />
+      </SafeAreaView>
+    );
   }
 
   if (isLoading || !form) {

@@ -30,7 +30,7 @@ export default function CarouselScreen() {
   const router = useRouter();
   const qc = useQueryClient();
 
-  const { data: items, isLoading } = useQuery({
+  const { data: items, isLoading, isError, error } = useQuery({
     queryKey: ["carousel"],
     queryFn: listCarousel,
   });
@@ -186,6 +186,10 @@ export default function CarouselScreen() {
             <View className="py-10 items-center">
               <ActivityIndicator />
             </View>
+          ) : isError ? (
+            <Text className="text-sm text-red-600 px-2">
+              Couldn&apos;t load: {error instanceof Error ? error.message : "Unknown error"}
+            </Text>
           ) : (
             <Text className="text-sm text-gray-500 italic px-2">
               No slides yet.

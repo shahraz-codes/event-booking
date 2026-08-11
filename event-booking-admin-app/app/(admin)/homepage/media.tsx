@@ -37,7 +37,7 @@ export default function MediaLibraryScreen() {
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
 
-  const { data: files, isLoading } = useQuery({
+  const { data: files, isLoading, isError, error } = useQuery({
     queryKey: ["media"],
     queryFn: listMediaFiles,
   });
@@ -188,6 +188,10 @@ export default function MediaLibraryScreen() {
             <View className="py-10 items-center w-full">
               <ActivityIndicator />
             </View>
+          ) : isError ? (
+            <Text className="text-sm text-red-600 px-2">
+              Couldn&apos;t load: {error instanceof Error ? error.message : "Unknown error"}
+            </Text>
           ) : (
             <Text className="text-sm text-gray-500 italic px-2">
               No files uploaded yet.
