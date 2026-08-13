@@ -2,7 +2,7 @@ import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/config";
 
@@ -75,3 +75,15 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     params: { eventsPerSecond: 10 },
   },
 });
+
+// React Native does NOT refresh auth tokens in the background on its own — it
+// must be driven by AppState. Without this the access token expires (~1h) and
+// every authenticated /api/admin/* request starts returning 401 Unauthorized.
+if (Platform.OS !== "web") {
+  const syncAutoRefresh = (state: string) => {
+    if (state === "active") supabase.auth.startAutoRefresh();
+    else supabase.auth.stopAutoRefresh();
+  };
+  syncAutoRefresh(AppState.currentState ?? "active");
+  AppState.addEventListener("change", syncAutoRefresh);
+}

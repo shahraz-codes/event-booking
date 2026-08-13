@@ -1,18 +1,13 @@
 /**
  * Authenticated wrapper around fetch() for the Next.js admin API.
- *
- * All writes (approve, reject, comments, quotations, homepage, settings,
- * blocked dates) go through `/api/admin/*` on the Next.js app. Reads use
- * supabase-js directly (RLS-gated).
- *
- * Pattern:
- *   - Pulls the current Supabase access token from `supabase.auth.getSession()`
- *   - Sends it as `Authorization: Bearer <jwt>`
- *   - Server (src/lib/auth.ts) verifies the JWT + admin_users membership
+ * - Pulls the Supabase access token; proactively refreshes it if it's expired
+ *   or about to expire, and retries once if the server still returns 401.
+ * - Logs every request/response for on-device diagnostics.
  */
 
 import { API_BASE_URL } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
+import { log } from "@/lib/logger";
 
 export class ApiError extends Error {
   status: number;
@@ -32,10 +27,7 @@ interface RequestOpts {
   signal?: AbortSignal;
 }
 
-function buildUrl(
-  path: string,
-  query: RequestOpts["query"] | undefined
-): string {
+function buildUrl(path: string, query: RequestOpts["query"] | undefined): string {
   const trimmed = path.startsWith("/") ? path : `/${path}`;
   const url = new URL(`${API_BASE_URL}${trimmed}`);
   if (query) {
@@ -46,54 +38,91 @@ function buildUrl(
   return url.toString();
 }
 
+/** Returns a valid access token, refreshing if it's missing/expired/near expiry. */
+async function getFreshToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  let session = data.session;
+  const expMs = session?.expires_at ? session.expires_at * 1000 : 0;
+  const expiringSoon = !expMs || expMs - Date.now() < 60_000; // refresh within 60s of expiry
+  if (session && expiringSoon) {
+    const { data: refreshed, error } = await supabase.auth.refreshSession();
+    if (!error && refreshed.session) {
+      session = refreshed.session;
+    } else {
+      log.warn("auth", "refreshSession failed", { error: error?.message });
+    }
+  }
+  return session?.access_token ?? null;
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
   opts: RequestOpts = {}
 ): Promise<T> {
   const { method = "GET", body, query, signal } = opts;
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
+  let token = await getFreshToken();
   if (!token) {
+    log.error("api", `${method} ${path} — no auth token`, {});
     throw new ApiError("Not authenticated", 401, null);
   }
 
   const url = buildUrl(path, query);
 
-  // Fail fast (15s) so an unreachable API surfaces an error instead of hanging.
-  const timeoutController = new AbortController();
-  const timeout = setTimeout(() => timeoutController.abort(), 15_000);
-  // If the caller passed their own signal, abort our request when theirs aborts.
-  if (signal) {
-    if (signal.aborted) timeoutController.abort();
-    else signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
-  }
-
-  const init: RequestInit = {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    signal: timeoutController.signal,
+  const doRequest = async (bearer: string): Promise<Response> => {
+    const timeoutController = new AbortController();
+    const timeout = setTimeout(() => timeoutController.abort(), 15_000);
+    if (signal) {
+      if (signal.aborted) timeoutController.abort();
+      else signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
+    }
+    const init: RequestInit = {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${bearer}`,
+      },
+      signal: timeoutController.signal,
+    };
+    if (body !== undefined) init.body = JSON.stringify(body);
+    try {
+      return await fetch(url, init);
+    } finally {
+      clearTimeout(timeout);
+    }
   };
-  if (body !== undefined) init.body = JSON.stringify(body);
+
+  log.debug("api", `${method} ${path}`, { hasToken: true });
 
   let res: Response;
   try {
-    res = await fetch(url, init);
+    res = await doRequest(token);
   } catch (err) {
-    clearTimeout(timeout);
     const aborted = err instanceof Error && err.name === "AbortError";
-    throw new ApiError(
-      aborted
-        ? "The server took too long to respond. Check your connection and that the app is pointed at the right backend."
-        : `Network error: ${err instanceof Error ? err.message : "request failed"}`,
-      0,
-      null
-    );
+    const message = aborted
+      ? "The server took too long to respond. Check your connection and that the app is pointed at the right backend."
+      : `Network error: ${err instanceof Error ? err.message : "request failed"}`;
+    log.error("api", `${method} ${path} — network/timeout`, { message });
+    throw new ApiError(message, 0, null);
   }
-  clearTimeout(timeout);
+
+  // If the token was rejected, refresh once and retry.
+  if (res.status === 401) {
+    log.warn("api", `${method} ${path} — 401, refreshing token and retrying`, {});
+    const { data: refreshed, error } = await supabase.auth.refreshSession();
+    token = refreshed.session?.access_token ?? null;
+    if (error || !token) {
+      log.error("api", `${method} ${path} — refresh after 401 failed`, { error: error?.message });
+    } else {
+      try {
+        res = await doRequest(token);
+      } catch (err) {
+        const message = `Network error: ${err instanceof Error ? err.message : "request failed"}`;
+        log.error("api", `${method} ${path} — retry network error`, { message });
+        throw new ApiError(message, 0, null);
+      }
+    }
+  }
 
   const text = await res.text();
   let payload: unknown = null;
@@ -109,12 +138,16 @@ export async function apiFetch<T = unknown>(
     let message = `Request failed (${res.status})`;
     if (payload && typeof payload === "object") {
       const errField = (payload as { error?: unknown }).error;
-      if (typeof errField === "string" && errField.length > 0) {
-        message = errField;
-      }
+      if (typeof errField === "string" && errField.length > 0) message = errField;
     }
+    log.error("api", `${method} ${path} failed`, {
+      status: res.status,
+      body: typeof payload === "string" ? payload.slice(0, 300) : payload,
+    });
     throw new ApiError(message, res.status, payload);
   }
+
+  log.debug("api", `${method} ${path} ok`, { status: res.status });
 
   if (payload && typeof payload === "object" && "data" in payload) {
     return (payload as { data: T }).data;
