@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -17,8 +18,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ActionButton from "@/components/ActionButton";
 import MediaPicker from "@/components/MediaPicker";
 import Section from "@/components/Section";
+import { apiFetch } from "@/lib/api-client";
 import { APP_NAME } from "@/lib/config";
 import { useAuth } from "@/lib/auth-context";
+import { buildExportFile, clearLogs, getRecentLines, log } from "@/lib/logger";
+import * as Sharing from "expo-sharing";
 import type { MediaFile } from "@/services/homepage";
 import {
   PRESET_KEYS,
@@ -135,6 +139,55 @@ export default function SettingsScreen() {
 
   const [form, setForm] = useState<Form | null>(null);
   const [logo, setLogo] = useState<MediaFile | null>(null);
+  const [logModalOpen, setLogModalOpen] = useState(false);
+  const [recentLogs, setRecentLogs] = useState<string[]>([]);
+
+  async function shareLogs() {
+    const file = await buildExportFile();
+    if (!file) {
+      Alert.alert("No logs", "There are no logs to share yet.");
+      return;
+    }
+    if (!(await Sharing.isAvailableAsync())) {
+      Alert.alert("Unavailable", "Sharing isn't available on this device.");
+      return;
+    }
+    await Sharing.shareAsync(file.uri, {
+      mimeType: "text/plain",
+      dialogTitle: "Share admin logs",
+    });
+  }
+
+  async function viewLogs() {
+    setRecentLogs(await getRecentLines(100));
+    setLogModalOpen(true);
+  }
+
+  function confirmClearLogs() {
+    Alert.alert("Clear logs?", "This deletes all saved logs on this device.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: () => {
+          clearLogs();
+          Alert.alert("Cleared", "Logs cleared.");
+        },
+      },
+    ]);
+  }
+
+  async function runAuthDiagnostic() {
+    try {
+      const result = await apiFetch<Record<string, unknown>>("/api/admin/whoami");
+      log.info("auth", "whoami", result);
+      Alert.alert("Auth diagnostic", JSON.stringify(result, null, 2));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      log.error("auth", "whoami failed", { message: msg });
+      Alert.alert("Auth diagnostic failed", msg);
+    }
+  }
 
   useEffect(() => {
     if (settings) {
@@ -218,12 +271,52 @@ export default function SettingsScreen() {
 
   if (isError) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
-        <Text className="text-red-600 text-center mb-3">
-          Couldn&apos;t load settings.{"\n"}
-          {error instanceof Error ? error.message : "Unknown error"}
-        </Text>
-        <ActionButton label="Retry" variant="secondary" onPress={() => refetch()} />
+      <SafeAreaView className="flex-1 bg-white px-6" edges={["top"]}>
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-red-600 text-center mb-3">
+            Couldn&apos;t load settings.{"\n"}
+            {error instanceof Error ? error.message : "Unknown error"}
+          </Text>
+          <ActionButton label="Retry" variant="secondary" onPress={() => refetch()} />
+        </View>
+        <View className="pb-6">
+          <Section
+            title="Diagnostics"
+            subtitle="On-device logs for troubleshooting. Share them with support."
+          >
+            <View className="gap-2">
+              <ActionButton label="Share logs" variant="primary" onPress={shareLogs} fullWidth />
+              <ActionButton label="View recent logs" variant="secondary" onPress={viewLogs} fullWidth />
+              <ActionButton label="Clear logs" variant="danger" onPress={confirmClearLogs} fullWidth />
+              <ActionButton label="Run auth diagnostic" variant="secondary" onPress={runAuthDiagnostic} fullWidth />
+            </View>
+          </Section>
+        </View>
+        <Modal
+          visible={logModalOpen}
+          animationType="slide"
+          onRequestClose={() => setLogModalOpen(false)}
+        >
+          <SafeAreaView className="flex-1 bg-white">
+            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+              <Text className="text-base font-bold text-gray-900">Recent logs</Text>
+              <Pressable onPress={() => setLogModalOpen(false)} hitSlop={8}>
+                <Text className="text-brand-700 font-semibold">Close</Text>
+              </Pressable>
+            </View>
+            <ScrollView className="flex-1 px-3 py-2">
+              {recentLogs.length === 0 ? (
+                <Text className="text-sm text-gray-500 italic">No logs yet.</Text>
+              ) : (
+                recentLogs.map((l, i) => (
+                  <Text key={i} selectable className="text-[11px] text-gray-800 mb-1">
+                    {l}
+                  </Text>
+                ))
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
       </SafeAreaView>
     );
   }
@@ -259,6 +352,46 @@ export default function SettingsScreen() {
               onPress={confirmSignOut}
               fullWidth
             />
+          </Section>
+
+          <View className="h-3" />
+
+          <Section
+            title="Diagnostics"
+            subtitle="On-device logs for troubleshooting. Share them with support."
+          >
+            <View className="gap-2">
+              <ActionButton label="Share logs" variant="primary" onPress={shareLogs} fullWidth />
+              <ActionButton label="View recent logs" variant="secondary" onPress={viewLogs} fullWidth />
+              <ActionButton label="Clear logs" variant="danger" onPress={confirmClearLogs} fullWidth />
+              <ActionButton label="Run auth diagnostic" variant="secondary" onPress={runAuthDiagnostic} fullWidth />
+            </View>
+
+            <Modal
+              visible={logModalOpen}
+              animationType="slide"
+              onRequestClose={() => setLogModalOpen(false)}
+            >
+              <SafeAreaView className="flex-1 bg-white">
+                <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+                  <Text className="text-base font-bold text-gray-900">Recent logs</Text>
+                  <Pressable onPress={() => setLogModalOpen(false)} hitSlop={8}>
+                    <Text className="text-brand-700 font-semibold">Close</Text>
+                  </Pressable>
+                </View>
+                <ScrollView className="flex-1 px-3 py-2">
+                  {recentLogs.length === 0 ? (
+                    <Text className="text-sm text-gray-500 italic">No logs yet.</Text>
+                  ) : (
+                    recentLogs.map((l, i) => (
+                      <Text key={i} selectable className="text-[11px] text-gray-800 mb-1">
+                        {l}
+                      </Text>
+                    ))
+                  )}
+                </ScrollView>
+              </SafeAreaView>
+            </Modal>
           </Section>
 
           <View className="h-3" />

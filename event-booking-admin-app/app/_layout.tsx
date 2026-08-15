@@ -5,11 +5,36 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryCache,
+  MutationCache,
+} from "@tanstack/react-query";
 
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { installLogging, log } from "@/lib/logger";
+
+// Start on-device logging as early as possible.
+installLogging();
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      log.error("query", `query failed: ${String(query.queryKey)}`, {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _vars, _ctx, mutation) => {
+      log.error(
+        "mutation",
+        `mutation failed: ${mutation.options.mutationKey ? String(mutation.options.mutationKey) : "(unkeyed)"}`,
+        { message: error instanceof Error ? error.message : String(error) }
+      );
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: 1,
