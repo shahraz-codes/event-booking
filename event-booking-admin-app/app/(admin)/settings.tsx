@@ -18,9 +18,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ActionButton from "@/components/ActionButton";
 import MediaPicker from "@/components/MediaPicker";
 import Section from "@/components/Section";
+import { apiFetch } from "@/lib/api-client";
 import { APP_NAME } from "@/lib/config";
 import { useAuth } from "@/lib/auth-context";
-import { buildExportFile, clearLogs, getRecentLines } from "@/lib/logger";
+import { buildExportFile, clearLogs, getRecentLines, log } from "@/lib/logger";
 import * as Sharing from "expo-sharing";
 import type { MediaFile } from "@/services/homepage";
 import {
@@ -176,6 +177,18 @@ export default function SettingsScreen() {
     ]);
   }
 
+  async function runAuthDiagnostic() {
+    try {
+      const result = await apiFetch<Record<string, unknown>>("/api/admin/whoami");
+      log.info("auth", "whoami", result);
+      Alert.alert("Auth diagnostic", JSON.stringify(result, null, 2));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      log.error("auth", "whoami failed", { message: msg });
+      Alert.alert("Auth diagnostic failed", msg);
+    }
+  }
+
   useEffect(() => {
     if (settings) {
       setForm(fromSettings(settings));
@@ -275,6 +288,7 @@ export default function SettingsScreen() {
               <ActionButton label="Share logs" variant="primary" onPress={shareLogs} fullWidth />
               <ActionButton label="View recent logs" variant="secondary" onPress={viewLogs} fullWidth />
               <ActionButton label="Clear logs" variant="danger" onPress={confirmClearLogs} fullWidth />
+              <ActionButton label="Run auth diagnostic" variant="secondary" onPress={runAuthDiagnostic} fullWidth />
             </View>
           </Section>
         </View>
@@ -350,6 +364,7 @@ export default function SettingsScreen() {
               <ActionButton label="Share logs" variant="primary" onPress={shareLogs} fullWidth />
               <ActionButton label="View recent logs" variant="secondary" onPress={viewLogs} fullWidth />
               <ActionButton label="Clear logs" variant="danger" onPress={confirmClearLogs} fullWidth />
+              <ActionButton label="Run auth diagnostic" variant="secondary" onPress={runAuthDiagnostic} fullWidth />
             </View>
 
             <Modal
