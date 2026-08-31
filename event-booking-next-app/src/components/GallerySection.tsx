@@ -176,6 +176,9 @@ export default function GallerySection({ gallery }: { gallery: GalleryItem[] }) 
                     src={selected.imageUrl}
                     poster={cloudinaryVideoPoster(selected.imageUrl) ?? undefined}
                     controls
+                    controlsList="nodownload noplaybackrate noremoteplayback"
+                    disablePictureInPicture
+                    onContextMenu={(e) => e.preventDefault()}
                     autoPlay
                     playsInline
                     className="max-h-full max-w-full rounded-lg"
