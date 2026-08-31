@@ -93,7 +93,8 @@ export async function getBooking(
  * handler enforces the state machine and triggers cascade conflict logic.
  */
 export interface AdminActionPayload {
-  bookingId: string;
+  /** DB id (Booking.id), NOT the human bookingId. */
+  id: string;
   action: AdminBookingAction;
   adminNote?: string;
   totalAmount?: number;
