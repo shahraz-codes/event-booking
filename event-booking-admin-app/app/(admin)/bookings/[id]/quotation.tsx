@@ -2,14 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Stack,
@@ -296,11 +294,12 @@ export default function QuotationEditorScreen() {
       <Stack.Screen
         options={{ headerShown: false, title: "Quotation" }}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAwareScrollView
         className="flex-1"
+        contentContainerStyle={{ padding: 12, paddingBottom: 120 }}
+        bottomOffset={24}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 32 }}>
           <View className="flex-row items-center mb-3">
             <Pressable
               onPress={() => router.back()}
@@ -525,8 +524,7 @@ export default function QuotationEditorScreen() {
               fullWidth
             />
           </Section>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

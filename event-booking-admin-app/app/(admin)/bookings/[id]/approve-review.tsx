@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -72,6 +72,8 @@ export default function ApproveReviewScreen() {
   const bookingPublicId = String(params.id ?? "");
 
   const [adminNote, setAdminNote] = useState("");
+  const [totalAmount, setTotalAmount] = useState("");
+  const [advanceAmount, setAdvanceAmount] = useState("");
 
   const bookingQuery = useQuery({
     queryKey: ["bookings", "detail", bookingPublicId],
@@ -79,6 +81,13 @@ export default function ApproveReviewScreen() {
     enabled: !!bookingPublicId,
   });
   const booking: BookingRecord | null | undefined = bookingQuery.data;
+
+  useEffect(() => {
+    if (booking) {
+      setTotalAmount(String(booking.totalAmount ?? ""));
+      setAdvanceAmount(String(booking.advanceAmount ?? ""));
+    }
+  }, [booking]);
 
   const previewQuery = useQuery({
     queryKey: ["conflict-preview", booking?.id],
@@ -90,9 +99,11 @@ export default function ApproveReviewScreen() {
   const approveMutation = useMutation({
     mutationFn: () =>
       performAdminAction({
-        bookingId: bookingPublicId,
+        id: booking!.id,
         action: "approve",
         adminNote: adminNote || undefined,
+        totalAmount: Number(totalAmount) || 0,
+        advanceAmount: Number(advanceAmount) || 0,
         confirmCascade: true,
       }),
     onSuccess: () => {
@@ -230,6 +241,26 @@ export default function ApproveReviewScreen() {
 
         <View className="h-3" />
 
+        <Section title="Amounts" subtitle="Confirm the total and advance before approving.">
+          <Text className="text-xs font-semibold text-gray-700 mb-1">Total amount (₹)</Text>
+          <TextInput
+            value={totalAmount}
+            onChangeText={(t) => setTotalAmount(t.replace(/[^\d]/g, ""))}
+            keyboardType="number-pad"
+            placeholder="0"
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 mb-3"
+          />
+          <Text className="text-xs font-semibold text-gray-700 mb-1">Advance received (₹)</Text>
+          <TextInput
+            value={advanceAmount}
+            onChangeText={(t) => setAdvanceAmount(t.replace(/[^\d]/g, ""))}
+            keyboardType="number-pad"
+            placeholder="0"
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900"
+          />
+        </Section>
+        <View className="h-3" />
+
         <Section title="Admin note (optional)">
           <TextInput
             value={adminNote}
@@ -252,9 +283,10 @@ export default function ApproveReviewScreen() {
           onPress={() => {
             Alert.alert(
               hasConflicts ? "Approve with cascade?" : "Approve booking?",
-              hasConflicts
-                ? `This will mark ${conflicts.length} other booking(s) as CONFLICTED. Continue?`
-                : "Approve this booking?",
+              (hasConflicts
+                ? `This will mark ${conflicts.length} other booking(s) as CONFLICTED. `
+                : "") +
+                `Advance: ₹${advanceAmount || 0}. Continue?`,
               [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -266,6 +298,7 @@ export default function ApproveReviewScreen() {
             );
           }}
           loading={approveMutation.isPending}
+          disabled={!totalAmount}
           fullWidth
         />
 

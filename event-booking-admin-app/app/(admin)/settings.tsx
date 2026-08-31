@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Switch,
@@ -12,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -117,6 +116,15 @@ function toSettings(f: Form): SiteSettings {
     logoUrl: f.logoUrl,
     logoMediaFileId: f.logoMediaFileId,
   };
+}
+
+function formatContactPhone(raw: string): string {
+  let d = raw.replace(/\D/g, "");
+  if (d.startsWith("91")) d = d.slice(2);
+  d = d.slice(0, 10);
+  if (d.length === 0) return "";
+  if (d.length <= 5) return `+91 ${d}`;
+  return `+91 ${d.slice(0, 5)} ${d.slice(5)}`;
 }
 
 const PRESET_COLORS: Record<PresetKey, string> = {
@@ -336,11 +344,12 @@ export default function SettingsScreen() {
         <Text className="text-xs text-gray-500 mt-0.5">{APP_NAME} admin</Text>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAwareScrollView
         className="flex-1"
+        contentContainerStyle={{ padding: 12, paddingBottom: 120 }}
+        bottomOffset={24}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 32 }}>
           <Section title="Signed in as">
             <Text className="text-sm text-gray-700">
               {session?.user?.email ?? "—"}
@@ -541,7 +550,7 @@ export default function SettingsScreen() {
                 </Text>
                 <TextInput
                   value={form.contactPhone}
-                  onChangeText={(t) => set("contactPhone", t)}
+                  onChangeText={(t) => set("contactPhone", formatContactPhone(t))}
                   placeholder="+91 XXXXX XXXXX"
                   keyboardType="phone-pad"
                   className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900"
@@ -696,8 +705,7 @@ export default function SettingsScreen() {
             loading={saveMutation.isPending}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

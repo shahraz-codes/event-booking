@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Link,
   Stack,
+  useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
@@ -74,6 +75,16 @@ export default function BookingDetailScreen() {
   const [reason, setReason] = useState("");
   const [comment, setComment] = useState("");
 
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setComment("");
+        setAdminNote("");
+        setReason("");
+      };
+    }, [])
+  );
+
   const {
     data: booking,
     isLoading,
@@ -108,7 +119,7 @@ export default function BookingDetailScreen() {
   });
 
   const commentMutation = useMutation({
-    mutationFn: (msg: string) => postAdminComment(bookingId, msg),
+    mutationFn: (msg: string) => postAdminComment(booking!.id, msg),
     onSuccess: () => {
       setComment("");
       qc.invalidateQueries({ queryKey: ["comments", booking?.id] });
@@ -127,14 +138,16 @@ export default function BookingDetailScreen() {
       {
         text: "Yes",
         style: options.destructive ? "destructive" : "default",
-        onPress: () =>
+        onPress: () => {
+          if (!booking) return;
           actionMutation.mutate({
-            bookingId,
+            id: booking.id,
             action,
             adminNote: adminNote || undefined,
             reason: reason || undefined,
             ...extras,
-          }),
+          });
+        },
       },
     ]);
   }

@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -13,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import ActionButton from "@/components/ActionButton";
 import MediaPicker from "@/components/MediaPicker";
@@ -103,11 +101,12 @@ export default function HeroEditorScreen() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <Stack.Screen options={{ headerShown: false, title: "Hero" }} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAwareScrollView
         className="flex-1"
+        contentContainerStyle={{ padding: 12, paddingBottom: 120 }}
+        bottomOffset={24}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 32 }}>
           <View className="flex-row items-center mb-3">
             <Pressable
               onPress={() => router.back()}
@@ -200,8 +199,7 @@ export default function HeroEditorScreen() {
             loading={saveMutation.isPending}
             fullWidth
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

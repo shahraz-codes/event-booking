@@ -36,6 +36,8 @@ export default function MediaLibraryScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data: files, isLoading, isError, error } = useQuery({
     queryKey: ["media"],
@@ -73,6 +75,26 @@ export default function MediaLibraryScreen() {
     onError: (e: Error) => Alert.alert("Cannot delete", e.message),
   });
 
+  const bulkDeleteMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) await deleteMediaFile(id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["media"] });
+      setSelected(new Set());
+      setSelectMode(false);
+    },
+    onError: (e: Error) => Alert.alert("Cannot delete", e.message),
+  });
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
   async function pickAndUpload() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -106,6 +128,7 @@ export default function MediaLibraryScreen() {
       <FlatList
         data={files ?? []}
         keyExtractor={(f) => f.id}
+        extraData={{ selectMode, selected, deleteMut }}
         contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
         numColumns={2}
         columnWrapperStyle={{ gap: 8 }}
@@ -123,6 +146,17 @@ export default function MediaLibraryScreen() {
               <Text className="ml-3 text-sm font-semibold text-gray-700">
                 Media library
               </Text>
+              <Pressable
+                onPress={() => {
+                  setSelectMode((m) => !m);
+                  setSelected(new Set());
+                }}
+                className="ml-auto px-3 py-1 rounded bg-gray-200 active:bg-gray-300"
+              >
+                <Text className="text-sm font-semibold text-gray-700">
+                  {selectMode ? "Cancel" : "Select"}
+                </Text>
+              </Pressable>
             </View>
 
             <Section
@@ -142,10 +176,35 @@ export default function MediaLibraryScreen() {
             <Text className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-2">
               Files ({files?.length ?? 0})
             </Text>
+            {selectMode && selected.size > 0 ? (
+              <View className="mb-2">
+                <ActionButton
+                  label={`Delete ${selected.size} selected`}
+                  variant="danger"
+                  loading={bulkDeleteMut.isPending}
+                  onPress={() =>
+                    Alert.alert("Delete selected?", "This cannot be undone.", [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete",
+                        style: "destructive",
+                        onPress: () => bulkDeleteMut.mutate([...selected]),
+                      },
+                    ])
+                  }
+                  fullWidth
+                />
+              </View>
+            ) : null}
           </View>
         }
         renderItem={({ item }) => (
-          <View className="bg-white rounded-xl border border-gray-200 p-2 mb-2 flex-1">
+          <Pressable
+            onPress={() => selectMode && toggleSelected(item.id)}
+            className={`bg-white rounded-xl border p-2 mb-2 flex-1 ${
+              selectMode && selected.has(item.id) ? "border-brand-600 bg-brand-50" : "border-gray-200"
+            }`}
+          >
             {item.resourceType === "image" ? (
               <Image
                 source={{ uri: item.url }}
@@ -175,13 +234,24 @@ export default function MediaLibraryScreen() {
             <Text className="text-[10px] text-gray-500">
               {formatBytes(item.fileSize)}
             </Text>
-            <Pressable
-              onPress={() => confirmDelete(item)}
-              className="mt-1.5 px-2 py-1 rounded bg-red-100 active:bg-red-200 self-start"
-            >
-              <Text className="text-[10px] font-bold text-red-700">Delete</Text>
-            </Pressable>
-          </View>
+            {selectMode ? (
+              <Text className="text-[10px] font-bold text-brand-700 mt-1.5">
+                {selected.has(item.id) ? "✓ Selected" : "Tap to select"}
+              </Text>
+            ) : (
+              <Pressable
+                onPress={() => confirmDelete(item)}
+                disabled={deleteMut.isPending && deleteMut.variables === item.id}
+                className="mt-1.5 px-2 py-1 rounded bg-red-100 active:bg-red-200 self-start"
+              >
+                <Text className="text-[10px] font-bold text-red-700">
+                  {deleteMut.isPending && deleteMut.variables === item.id
+                    ? "Deleting…"
+                    : "Delete"}
+                </Text>
+              </Pressable>
+            )}
+          </Pressable>
         )}
         ListEmptyComponent={
           isLoading ? (
