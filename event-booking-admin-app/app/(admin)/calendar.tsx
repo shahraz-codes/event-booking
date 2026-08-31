@@ -61,6 +61,9 @@ export default function CalendarScreen() {
     queryFn: fetchCalendarInfo,
   });
 
+  const bookedSet = new Set(data?.bookedDates ?? []);
+  const manualBlocked = (data?.blockedDates ?? []).filter((d) => !bookedSet.has(d));
+
   const blockMutation = useMutation({
     mutationFn: (payload: { date: string; reason?: string }) =>
       apiFetch("/api/admin/blocked-dates", { method: "POST", body: payload }),
@@ -107,8 +110,9 @@ export default function CalendarScreen() {
       </View>
 
       <FlatList
-        data={data?.blockedDates ?? []}
+        data={manualBlocked}
         keyExtractor={(d) => d}
+        extraData={unblockMutation}
         contentContainerStyle={{ padding: 12 }}
         refreshControl={
           <RefreshControl
@@ -166,7 +170,7 @@ export default function CalendarScreen() {
 
             <View className="px-1">
               <Text className="text-xs uppercase tracking-wider font-bold text-gray-500">
-                Blocked dates ({data?.blockedDates.length ?? 0})
+                Blocked dates ({manualBlocked.length})
               </Text>
             </View>
           </View>
@@ -182,7 +186,7 @@ export default function CalendarScreen() {
               variant="secondary"
               size="sm"
               onPress={() => unblockMutation.mutate(item)}
-              loading={unblockMutation.isPending}
+              loading={unblockMutation.isPending && unblockMutation.variables === item}
             />
           </Pressable>
         )}
