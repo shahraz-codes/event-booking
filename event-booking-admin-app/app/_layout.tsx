@@ -12,6 +12,8 @@ import {
   MutationCache,
 } from "@tanstack/react-query";
 
+import { KeyboardProvider } from "react-native-keyboard-controller";
+
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { installLogging, log } from "@/lib/logger";
 
@@ -71,20 +73,22 @@ function AuthGate() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <AuthGate />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(admin)" />
-            </Stack>
-            <StatusBar style="dark" />
-          </AuthProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <KeyboardProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <AuthGate />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(admin)" />
+              </Stack>
+              <StatusBar style="dark" />
+            </AuthProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </KeyboardProvider>
   );
 }
