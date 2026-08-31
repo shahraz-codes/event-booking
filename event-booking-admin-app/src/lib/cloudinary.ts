@@ -10,6 +10,8 @@
  * to persist a MediaFile row server-side (see media.ts service).
  */
 
+import * as FileSystem from "expo-file-system/legacy";
+
 import {
   CLOUDINARY_CLOUD_NAME,
   CLOUDINARY_UPLOAD_PRESET,
@@ -65,31 +67,23 @@ export async function uploadToCloudinary(
     asset.mimeType?.trim() ||
     (kind === "video" ? "video/mp4" : "image/jpeg");
 
-  const form = new FormData();
-  // React Native FormData supports the { uri, name, type } shape.
-  form.append("file", {
-    uri: asset.uri,
-    name: fileName,
-    type: mimeType,
-  } as unknown as Blob);
-  form.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-
-  const res = await fetch(endpoint, {
-    method: "POST",
-    body: form,
+  const result = await FileSystem.uploadAsync(endpoint, asset.uri, {
+    httpMethod: "POST",
+    uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+    fieldName: "file",
+    mimeType,
+    parameters: { upload_preset: CLOUDINARY_UPLOAD_PRESET },
   });
 
-  const text = await res.text();
   let json: any;
   try {
-    json = JSON.parse(text);
+    json = JSON.parse(result.body);
   } catch {
     throw new Error("Cloudinary returned a non-JSON response");
   }
 
-  if (!res.ok) {
-    const msg =
-      json?.error?.message || `Cloudinary upload failed (${res.status})`;
+  if (result.status < 200 || result.status >= 300) {
+    const msg = json?.error?.message || `Cloudinary upload failed (${result.status})`;
     throw new Error(msg);
   }
 
